@@ -1,31 +1,65 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { isValidDomain } from "@/app/lib/domain";
+
+type ApiResponse = {
+  status: "success" | "error";
+  domain?: string;
+  message: string;
+};
 
 export default function DomainForm() {
   const [domain, setDomain] = useState("");
   const [error, setError] = useState("");
-  const [submittedDomain, setSubmittedDomain] = useState("");
+  const [result, setResult] = useState<ApiResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const trimmedDomain = domain.trim();
 
     if (!trimmedDomain) {
       setError("ドメインを入力してください。");
-      setSubmittedDomain("");
+      setResult(null);
       return;
     }
 
     if (!isValidDomain(trimmedDomain)) {
       setError("example.comのような形式で入力してください。");
-      setSubmittedDomain("");
+      setResult(null);
       return;
     }
 
     setError("");
-    setSubmittedDomain(trimmedDomain);
+    setResult(null);
+    setIsLoading(true);
+
+    try {
+      const response = await fetch("/api/check", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          domain: trimmedDomain,
+        }),
+      });
+
+      const data = (await response.json()) as ApiResponse;
+
+      if (!response.ok) {
+        setError(data.message);
+        return;
+      }
+
+      setResult(data);
+    } catch {
+      setError("通信に失敗しました。時間を置いて再度お試しください。");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -56,26 +90,24 @@ export default function DomainForm() {
 
         <button
           type="submit"
-          className="h-fit rounded-lg bg-blue-600 px-6 py-3 font-bold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-200"
+          disabled={isLoading}
+          className="h-fit rounded-lg bg-blue-600 px-6 py-3 font-bold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-200 disabled:cursor-not-allowed disabled:bg-blue-300"
         >
-          診断する
+          {isLoading ? "診断中..." : "診断する"}
         </button>
       </form>
 
-      {submittedDomain && (
+      {result && (
         <div className="mt-6 rounded-lg bg-slate-100 p-4 text-left">
-          <p className="text-sm text-slate-500">入力されたドメイン</p>
+          <p className="text-sm text-slate-500">APIからのレスポンス</p>
 
-          <p className="mt-1 font-bold text-slate-900">{submittedDomain}</p>
+          <p className="mt-2 font-bold text-slate-900">{result.message}</p>
+
+          {result.domain && (
+            <p className="mt-1 text-slate-700">{result.domain}</p>
+          )}
         </div>
       )}
     </div>
   );
-}
-
-function isValidDomain(domain: string) {
-  const domainPattern =
-    /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}$/;
-
-  return domainPattern.test(domain);
 }
