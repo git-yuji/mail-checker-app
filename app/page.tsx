@@ -1,3 +1,5 @@
+import DomainForm from "./components/DomainForm";
+
 export default function Home() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -25,26 +27,7 @@ export default function Home() {
             </p>
 
             <div className="mt-10 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <form className="flex flex-col gap-4 sm:flex-row">
-                <label htmlFor="domain" className="sr-only">
-                  ドメイン
-                </label>
-
-                <input
-                  id="domain"
-                  name="domain"
-                  type="text"
-                  placeholder="example.com"
-                  className="min-w-0 flex-1 rounded-lg border border-slate-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                />
-
-                <button
-                  type="submit"
-                  className="rounded-lg bg-blue-600 px-6 py-3 font-bold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-200"
-                >
-                  診断する
-                </button>
-              </form>
+              <DomainForm />
 
               <p className="mt-4 text-left text-sm text-slate-500">
                 URLではなく、example.comのようにドメインのみ入力してください。
