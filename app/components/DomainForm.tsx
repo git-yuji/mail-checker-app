@@ -75,7 +75,7 @@ export default function DomainForm() {
 
 function isValidDomain(domain: string) {
   const domainPattern =
-    /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
+    /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}$/;
 
   return domainPattern.test(domain);
 }
