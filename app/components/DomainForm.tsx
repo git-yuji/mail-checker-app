@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { isValidDomain } from "@/app/lib/domain";
 
 type ApiResponse = {
   status: "success" | "error";
@@ -109,11 +110,4 @@ export default function DomainForm() {
       )}
     </div>
   );
-}
-
-function isValidDomain(domain: string) {
-  const domainPattern =
-    /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}$/;
-
-  return domainPattern.test(domain);
 }
