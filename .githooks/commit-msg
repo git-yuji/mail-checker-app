@@ -1,0 +1,26 @@
+#!/bin/sh
+
+commit_message_file="$1"
+subject="$(sed -n '1p' "$commit_message_file")"
+
+case "$subject" in
+  Merge\ *|Revert\ *)
+    exit 0
+    ;;
+esac
+
+if ! printf '%s\n' "$subject" | grep -Eq '^(feat|fix|refactor|style|docs|test|chore): .+'; then
+  cat >&2 <<'EOF'
+コミットメッセージの形式が正しくありません。
+
+形式:
+  <type>: <変更内容の要約>
+
+利用可能な type:
+  feat, fix, refactor, style, docs, test, chore
+
+例:
+  feat: トップページのレイアウトとスタイルを更新
+EOF
+  exit 1
+fi
