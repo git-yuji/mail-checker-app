@@ -54,7 +54,7 @@ async function checkSpfRecord(domain: string): Promise<RecordCheck<string[]>> {
     const normalizedRecords = normalizeTxtRecords(txtRecords);
 
     const spfRecords = normalizedRecords.filter((record) =>
-      record.toLowerCase().startsWith("v=spf1"),
+      /^v=spf1(?:\s|$)/i.test(record),
     );
 
     if (spfRecords.length === 0) {
@@ -95,7 +95,7 @@ async function checkDmarcRecord(
     const normalizedRecords = normalizeTxtRecords(txtRecords);
 
     const dmarcRecords = normalizedRecords.filter((record) =>
-      record.toLowerCase().startsWith("v=dmarc1"),
+      /^v=dmarc1\s*;/i.test(record),
     );
 
     if (dmarcRecords.length === 0) {
@@ -103,6 +103,14 @@ async function checkDmarcRecord(
         status: "warning",
         message: "DMARCレコードが見つかりませんでした。",
         records: [],
+      };
+    }
+
+    if (dmarcRecords.length > 1) {
+      return {
+        status: "warning",
+        message: "DMARCレコードが複数設定されています。",
+        records: dmarcRecords,
       };
     }
 

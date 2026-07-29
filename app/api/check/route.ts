@@ -5,35 +5,50 @@ import { isValidDomain } from "@/app/lib/domain";
 
 export const runtime = "nodejs";
 
-type CheckRequest = {
-  domain?: string;
-};
-
 export async function POST(request: Request) {
+  let body: unknown;
+
   try {
-    const body = (await request.json()) as CheckRequest;
-    const domain = body.domain?.trim().toLowerCase();
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      {
+        status: "error",
+        message: "リクエストの形式が正しくありません。",
+      },
+      { status: 400 },
+    );
+  }
 
-    if (!domain) {
-      return NextResponse.json(
-        {
-          status: "error",
-          message: "ドメインを入力してください。",
-        },
-        { status: 400 },
-      );
-    }
+  const domain =
+    typeof body === "object" &&
+    body !== null &&
+    "domain" in body &&
+    typeof body.domain === "string"
+      ? body.domain.trim().toLowerCase()
+      : "";
 
-    if (!isValidDomain(domain)) {
-      return NextResponse.json(
-        {
-          status: "error",
-          message: "ドメインの形式が正しくありません。",
-        },
-        { status: 400 },
-      );
-    }
+  if (!domain) {
+    return NextResponse.json(
+      {
+        status: "error",
+        message: "ドメインを入力してください。",
+      },
+      { status: 400 },
+    );
+  }
 
+  if (!isValidDomain(domain)) {
+    return NextResponse.json(
+      {
+        status: "error",
+        message: "ドメインの形式が正しくありません。",
+      },
+      { status: 400 },
+    );
+  }
+
+  try {
     const result = await checkDnsRecords(domain);
 
     return NextResponse.json({
