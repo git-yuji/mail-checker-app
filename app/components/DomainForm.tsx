@@ -2,11 +2,13 @@
 
 import { FormEvent, useState } from "react";
 import { isValidDomain } from "@/app/lib/domain";
+import type { DnsCheckResult } from "@/app/types/dns";
 
 type ApiResponse = {
   status: "success" | "error";
-  domain?: string;
   message: string;
+  domain?: string;
+  result?: DnsCheckResult;
 };
 
 export default function DomainForm() {
@@ -103,8 +105,10 @@ export default function DomainForm() {
 
           <p className="mt-2 font-bold text-slate-900">{result.message}</p>
 
-          {result.domain && (
-            <p className="mt-1 text-slate-700">{result.domain}</p>
+          {result?.result && (
+            <pre className="mt-6 overflow-x-auto rounded-lg bg-slate-100 p-4 text-left text-sm">
+              {JSON.stringify(result.result, null, 2)}
+            </pre>
           )}
         </div>
       )}

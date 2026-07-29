@@ -1,15 +1,18 @@
 import { NextResponse } from "next/server";
+
+import { checkDnsRecords } from "@/app/lib/dns";
 import { isValidDomain } from "@/app/lib/domain";
 
+export const runtime = "nodejs";
+
 type CheckRequest = {
-  domain?: unknown;
+  domain?: string;
 };
 
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as CheckRequest;
-    const domain =
-      typeof body.domain === "string" ? body.domain.trim() : undefined;
+    const domain = body.domain?.trim().toLowerCase();
 
     if (!domain) {
       return NextResponse.json(
@@ -25,24 +28,28 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           status: "error",
-          message: "example.comのような形式で入力してください。",
+          message: "ドメインの形式が正しくありません。",
         },
         { status: 400 },
       );
     }
 
+    const result = await checkDnsRecords(domain);
+
     return NextResponse.json({
       status: "success",
-      domain,
-      message: "ドメインを受け取りました。",
+      message: "DNSレコードを取得しました。",
+      result,
     });
-  } catch {
+  } catch (error) {
+    console.error("DNS check error:", error);
+
     return NextResponse.json(
       {
         status: "error",
-        message: "リクエストの形式が正しくありません。",
+        message: "DNSレコードの取得中にエラーが発生しました。",
       },
-      { status: 400 },
+      { status: 500 },
     );
   }
 }
