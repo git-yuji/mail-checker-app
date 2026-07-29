@@ -34,6 +34,23 @@ async function checkMxRecord(domain: string): Promise<RecordCheck<MxRecord[]>> {
       };
     }
 
+    const hasNullMx = sortedRecords.some(
+      (record) =>
+        record.priority === 0 &&
+        (record.exchange === "" || record.exchange === "."),
+    );
+
+    if (hasNullMx) {
+      return {
+        status: "warning",
+        message:
+          sortedRecords.length === 1
+            ? "このドメインはメールを受信しないNull MXが設定されています。"
+            : "Null MXと他のMXレコードが同時に設定されています。",
+        records: sortedRecords,
+      };
+    }
+
     return {
       status: "success",
       message: "MXレコードが設定されています。",
