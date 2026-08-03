@@ -122,18 +122,21 @@ export default function DomainForm() {
               status={result.result.mx.status}
               message={result.result.mx.message}
               records={result.result.mx.records}
+              details={result.result.mx.details}
             />
             <DnsResultCard
               title="SPF"
               status={result.result.spf.status}
               message={result.result.spf.message}
               records={result.result.spf.records}
+              details={result.result.spf.details}
             />
             <DnsResultCard
               title="DMARC"
               status={result.result.dmarc.status}
               message={result.result.dmarc.message}
               records={result.result.dmarc.records}
+              details={result.result.dmarc.details}
             />
           </div>
         </section>

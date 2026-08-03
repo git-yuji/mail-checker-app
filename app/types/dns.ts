@@ -9,6 +9,7 @@ export type RecordCheck<T> = {
   status: CheckStatus;
   message: string;
   records: T;
+  details?: string[];
 };
 
 export type DnsCheckResult = {

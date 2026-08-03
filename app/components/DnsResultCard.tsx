@@ -7,6 +7,7 @@ type DnsResultCardProps = {
   status: CheckStatus;
   message: string;
   records: DnsRecord[];
+  details?: string[];
 };
 
 export default function DnsResultCard({
@@ -14,6 +15,7 @@ export default function DnsResultCard({
   status,
   message,
   records,
+  details,
 }: DnsResultCardProps) {
   const statusConfig = {
     success: {
@@ -46,6 +48,14 @@ export default function DnsResultCard({
       </div>
 
       <p className="mt-3 text-sm text-slate-700">{message}</p>
+
+      {details && details.length > 0 && (
+        <ul className="mt-4 space-y-1 text-sm text-slate-700">
+          {details.map((detail) => (
+            <li key={detail}>・{detail}</li>
+          ))}
+        </ul>
+      )}
 
       {records.length > 0 && (
         <ul className="mt-4 space-y-2">
