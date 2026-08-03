@@ -153,7 +153,8 @@ function normalizeTxtRecords(records: string[][]): string[] {
 }
 
 function getSpfDetails(record: string): string[] {
-  const includeCount = record.match(/\binclude:/gi)?.length ?? 0;
+  const includeCount =
+    record.match(/(?:^|\s)[?~+-]?include:/gi)?.length ?? 0;
 
   const allMechanismMatch = record.match(/(?:^|\s)([?~+-]?)all(?:\s|$)/i);
 
