@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import { isValidDomain } from "@/app/lib/domain";
 import type { DnsCheckResult } from "@/app/types/dns";
+import DnsResultCard from "./DnsResultCard";
 
 type ApiResponse = {
   status: "success" | "error";
@@ -99,18 +100,43 @@ export default function DomainForm() {
         </button>
       </form>
 
-      {result && (
-        <div className="mt-6 rounded-lg bg-slate-100 p-4 text-left">
-          <p className="text-sm text-slate-500">APIからのレスポンス</p>
+      {result?.result && (
+        <section
+          className="mt-6 text-left"
+          aria-labelledby="dns-result-heading"
+          aria-live="polite"
+        >
+          <div>
+            <p className="text-sm text-slate-500">{result.message}</p>
+            <h2
+              id="dns-result-heading"
+              className="mt-1 text-xl font-bold text-slate-900"
+            >
+              {result.result.domain} の診断結果
+            </h2>
+          </div>
 
-          <p className="mt-2 font-bold text-slate-900">{result.message}</p>
-
-          {result?.result && (
-            <pre className="mt-6 overflow-x-auto rounded-lg bg-slate-100 p-4 text-left text-sm">
-              {JSON.stringify(result.result, null, 2)}
-            </pre>
-          )}
-        </div>
+          <div className="mt-4 grid gap-4 lg:grid-cols-3">
+            <DnsResultCard
+              title="MX"
+              status={result.result.mx.status}
+              message={result.result.mx.message}
+              records={result.result.mx.records}
+            />
+            <DnsResultCard
+              title="SPF"
+              status={result.result.spf.status}
+              message={result.result.spf.message}
+              records={result.result.spf.records}
+            />
+            <DnsResultCard
+              title="DMARC"
+              status={result.result.dmarc.status}
+              message={result.result.dmarc.message}
+              records={result.result.dmarc.records}
+            />
+          </div>
+        </section>
       )}
     </div>
   );
