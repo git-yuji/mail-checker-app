@@ -148,7 +148,7 @@ MX・SPF・DMARCは互いに独立した問い合わせのため、`Promise.all`
 ### インストールと起動
 
 ```bash
-git clone https://github.com/yujihozumi/mail-checker-app.git
+git clone https://github.com/git-yuji/mail-checker-app.git
 cd mail-checker-app
 npm install
 npm run dev
