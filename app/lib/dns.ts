@@ -176,7 +176,7 @@ function getDmarcDetails(record: string): string[] {
   }
 
   const policyMessages: Record<string, string> = {
-    none: "監視のみで、隔離や拒否は行われません。",
+    none: "受信側にメールの隔離や拒否を要求しないポリシーです。",
     quarantine: "認証に失敗したメールを迷惑メールとして扱う設定です。",
     reject: "認証に失敗したメールを拒否する設定です。",
   };
