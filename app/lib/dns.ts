@@ -154,12 +154,14 @@ function normalizeTxtRecords(records: string[][]): string[] {
 
 function getSpfDetails(record: string): string[] {
   const includeCount = record.match(/\binclude:/gi)?.length ?? 0;
-  const allMechanism = record.match(/(?:^|\s)[?~+-]all(?:\s|$)/i)?.[0].trim();
 
-  return [
-    `includeの数：${includeCount}`,
-    `終端設定：${allMechanism ?? "未設定"}`,
-  ];
+  const allMechanismMatch = record.match(/(?:^|\s)([?~+-]?)all(?:\s|$)/i);
+
+  const allMechanism = allMechanismMatch
+    ? `${allMechanismMatch[1] || "+"}all`
+    : "未設定";
+
+  return [`includeの数：${includeCount}`, `終端設定：${allMechanism}`];
 }
 
 function getDmarcDetails(record: string): string[] {
