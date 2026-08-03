@@ -55,6 +55,7 @@ async function checkMxRecord(domain: string): Promise<RecordCheck<MxRecord[]>> {
       status: "success",
       message: "MXレコードが設定されています。",
       records: sortedRecords,
+      details: [`${sortedRecords.length}件のMXレコードが見つかりました。`],
     };
   } catch {
     return {
@@ -94,6 +95,7 @@ async function checkSpfRecord(domain: string): Promise<RecordCheck<string[]>> {
       status: "success",
       message: "SPFレコードが設定されています。",
       records: spfRecords,
+      details: getSpfDetails(spfRecords[0]),
     };
   } catch {
     return {
@@ -135,6 +137,7 @@ async function checkDmarcRecord(
       status: "success",
       message: "DMARCレコードが設定されています。",
       records: dmarcRecords,
+      details: getDmarcDetails(dmarcRecords[0]),
     };
   } catch {
     return {
@@ -147,4 +150,39 @@ async function checkDmarcRecord(
 
 function normalizeTxtRecords(records: string[][]): string[] {
   return records.map((record) => record.join(""));
+}
+
+function getSpfDetails(record: string): string[] {
+  const includeCount =
+    record.match(/(?:^|\s)[?~+-]?include:/gi)?.length ?? 0;
+
+  const allMechanismMatch = record.match(/(?:^|\s)([?~+-]?)all(?:\s|$)/i);
+
+  const allMechanism = allMechanismMatch
+    ? `${allMechanismMatch[1] || "+"}all`
+    : "未設定";
+
+  return [`includeの数：${includeCount}`, `終端設定：${allMechanism}`];
+}
+
+function getDmarcDetails(record: string): string[] {
+  const policy = record
+    .match(/(?:^|;)\s*p=([^;]+)/i)?.[1]
+    ?.trim()
+    .toLowerCase();
+
+  if (!policy) {
+    return ["DMARCポリシーを確認できませんでした。"];
+  }
+
+  const policyMessages: Record<string, string> = {
+    none: "受信側にメールの隔離や拒否を要求しないポリシーです。",
+    quarantine: "認証に失敗したメールを迷惑メールとして扱う設定です。",
+    reject: "認証に失敗したメールを拒否する設定です。",
+  };
+
+  return [
+    `ポリシー：${policy}`,
+    policyMessages[policy] ?? "未対応のポリシーです。",
+  ];
 }
