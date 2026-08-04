@@ -2,6 +2,10 @@ import { resolveMx, resolveTxt } from "node:dns/promises";
 
 import type { DnsCheckResult, MxRecord, RecordCheck } from "@/app/types/dns";
 
+type DnsError = Error & {
+  code?: string;
+};
+
 export async function checkDnsRecords(domain: string): Promise<DnsCheckResult> {
   const [mx, spf, dmarc] = await Promise.all([
     checkMxRecord(domain),
@@ -57,10 +61,10 @@ async function checkMxRecord(domain: string): Promise<RecordCheck<MxRecord[]>> {
       records: sortedRecords,
       details: [`${sortedRecords.length}件のMXレコードが見つかりました。`],
     };
-  } catch {
+  } catch (error) {
     return {
       status: "warning",
-      message: "MXレコードを取得できませんでした。",
+      message: getDnsErrorMessage(error, "MXレコード"),
       records: [],
     };
   }
@@ -97,10 +101,10 @@ async function checkSpfRecord(domain: string): Promise<RecordCheck<string[]>> {
       records: spfRecords,
       details: getSpfDetails(spfRecords[0]),
     };
-  } catch {
+  } catch (error) {
     return {
       status: "warning",
-      message: "SPFレコードを取得できませんでした。",
+      message: getDnsErrorMessage(error, "SPFレコード"),
       records: [],
     };
   }
@@ -139,10 +143,10 @@ async function checkDmarcRecord(
       records: dmarcRecords,
       details: getDmarcDetails(dmarcRecords[0]),
     };
-  } catch {
+  } catch (error) {
     return {
       status: "warning",
-      message: "DMARCレコードを取得できませんでした。",
+      message: getDnsErrorMessage(error, "DMARCレコード"),
       records: [],
     };
   }
@@ -185,4 +189,24 @@ function getDmarcDetails(record: string): string[] {
     `ポリシー：${policy}`,
     policyMessages[policy] ?? "未対応のポリシーです。",
   ];
+}
+
+function getDnsErrorMessage(error: unknown, recordName: string): string {
+  const dnsError =
+    typeof error === "object" && error !== null
+      ? (error as DnsError)
+      : null;
+
+  switch (dnsError?.code) {
+    case "ENODATA":
+      return `${recordName}が設定されていません。`;
+    case "ENOTFOUND":
+      return "ドメインが見つかりませんでした。";
+    case "ETIMEOUT":
+      return "DNS問い合わせがタイムアウトしました。";
+    case "ESERVFAIL":
+      return "DNSサーバーで一時的なエラーが発生しました。";
+    default:
+      return `${recordName}を取得できませんでした。`;
+  }
 }

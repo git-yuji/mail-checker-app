@@ -47,7 +47,7 @@ export default function DnsResultCard({
         </span>
       </div>
 
-      <p className="mt-3 text-sm text-slate-700">{message}</p>
+      <p className="mt-3 break-words text-sm text-slate-700">{message}</p>
 
       {details && details.length > 0 && (
         <ul className="mt-4 space-y-1 text-sm text-slate-700">
