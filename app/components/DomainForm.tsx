@@ -2,7 +2,9 @@
 
 import { FormEvent, useState } from "react";
 import { isValidDomain } from "@/app/lib/domain";
+import { formatDnsResult } from "@/app/lib/format-result";
 import type { DnsCheckResult } from "@/app/types/dns";
+import CopyResultButton from "./CopyResultButton";
 import DnsResultCard from "./DnsResultCard";
 
 type ApiResponse = {
@@ -106,14 +108,18 @@ export default function DomainForm() {
           aria-labelledby="dns-result-heading"
           aria-live="polite"
         >
-          <div>
-            <p className="text-sm text-slate-500">{result.message}</p>
-            <h2
-              id="dns-result-heading"
-              className="mt-1 text-xl font-bold text-slate-900"
-            >
-              {result.result.domain} の診断結果
-            </h2>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm text-slate-500">{result.message}</p>
+              <h2
+                id="dns-result-heading"
+                className="mt-1 break-all text-xl font-bold text-slate-900"
+              >
+                {result.result.domain} の診断結果
+              </h2>
+            </div>
+
+            <CopyResultButton text={formatDnsResult(result.result)} />
           </div>
 
           <div className="mt-4 grid gap-4 lg:grid-cols-3">
