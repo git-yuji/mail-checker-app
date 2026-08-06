@@ -160,6 +160,15 @@ async function checkDmarcRecord(
       details: getDmarcDetails(dmarcRecords[0]),
     };
   } catch (error) {
+    if (isDnsError(error, "ENOTFOUND")) {
+      return {
+        status: "warning",
+        reason: "missing",
+        message: "DMARCレコードが設定されていません。",
+        records: [],
+      };
+    }
+
     return {
       status: "warning",
       reason: getDnsErrorReason(error),
@@ -206,6 +215,14 @@ function getDmarcDetails(record: string): string[] {
     `ポリシー：${policy}`,
     policyMessages[policy] ?? "未対応のポリシーです。",
   ];
+}
+
+function isDnsError(error: unknown, code: string): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    (error as DnsError).code === code
+  );
 }
 
 function getDnsErrorReason(error: unknown): CheckReason {

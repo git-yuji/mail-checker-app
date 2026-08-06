@@ -29,3 +29,12 @@ export type DnsCheckResult = {
   spf: RecordCheck<string[]>;
   dmarc: RecordCheck<string[]>;
 };
+
+export type RecommendationLevel = "info" | "warning" | "important";
+
+export type Recommendation = {
+  id: string;
+  title: string;
+  description: string;
+  level: RecommendationLevel;
+};
