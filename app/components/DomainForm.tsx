@@ -6,9 +6,11 @@ import {
   formatCustomerResult,
   formatTechnicalResult,
 } from "@/app/lib/format-result";
+import { getRecommendations } from "@/app/lib/recommendations";
 import type { DnsCheckResult } from "@/app/types/dns";
 import CopyResultButton from "./CopyResultButton";
 import DnsResultCard from "./DnsResultCard";
+import RecommendationList from "./RecommendationList";
 
 type ApiResponse = {
   status: "success" | "error";
@@ -155,6 +157,12 @@ export default function DomainForm() {
               message={result.result.dmarc.message}
               records={result.result.dmarc.records}
               details={result.result.dmarc.details}
+            />
+          </div>
+
+          <div className="mt-6">
+            <RecommendationList
+              recommendations={getRecommendations(result.result)}
             />
           </div>
         </section>
