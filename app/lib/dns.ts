@@ -1,6 +1,11 @@
 import { resolveMx, resolveTxt } from "node:dns/promises";
 
-import type { DnsCheckResult, MxRecord, RecordCheck } from "@/app/types/dns";
+import type {
+  CheckReason,
+  DnsCheckResult,
+  MxRecord,
+  RecordCheck,
+} from "@/app/types/dns";
 
 type DnsError = Error & {
   code?: string;
@@ -33,6 +38,7 @@ async function checkMxRecord(domain: string): Promise<RecordCheck<MxRecord[]>> {
     if (sortedRecords.length === 0) {
       return {
         status: "warning",
+        reason: "missing",
         message: "MXレコードが見つかりませんでした。",
         records: [],
       };
@@ -47,6 +53,7 @@ async function checkMxRecord(domain: string): Promise<RecordCheck<MxRecord[]>> {
     if (hasNullMx) {
       return {
         status: "warning",
+        reason: "null-mx",
         message:
           sortedRecords.length === 1
             ? "このドメインはメールを受信しないNull MXが設定されています。"
@@ -57,6 +64,7 @@ async function checkMxRecord(domain: string): Promise<RecordCheck<MxRecord[]>> {
 
     return {
       status: "success",
+      reason: "configured",
       message: "MXレコードが設定されています。",
       records: sortedRecords,
       details: [`${sortedRecords.length}件のMXレコードが見つかりました。`],
@@ -64,6 +72,7 @@ async function checkMxRecord(domain: string): Promise<RecordCheck<MxRecord[]>> {
   } catch (error) {
     return {
       status: "warning",
+      reason: getDnsErrorReason(error),
       message: getDnsErrorMessage(error, "MXレコード"),
       records: [],
     };
@@ -82,6 +91,7 @@ async function checkSpfRecord(domain: string): Promise<RecordCheck<string[]>> {
     if (spfRecords.length === 0) {
       return {
         status: "warning",
+        reason: "missing",
         message: "SPFレコードが見つかりませんでした。",
         records: [],
       };
@@ -90,6 +100,7 @@ async function checkSpfRecord(domain: string): Promise<RecordCheck<string[]>> {
     if (spfRecords.length > 1) {
       return {
         status: "warning",
+        reason: "multiple",
         message: "SPFレコードが複数設定されています。",
         records: spfRecords,
       };
@@ -97,6 +108,7 @@ async function checkSpfRecord(domain: string): Promise<RecordCheck<string[]>> {
 
     return {
       status: "success",
+      reason: "configured",
       message: "SPFレコードが設定されています。",
       records: spfRecords,
       details: getSpfDetails(spfRecords[0]),
@@ -104,6 +116,7 @@ async function checkSpfRecord(domain: string): Promise<RecordCheck<string[]>> {
   } catch (error) {
     return {
       status: "warning",
+      reason: getDnsErrorReason(error),
       message: getDnsErrorMessage(error, "SPFレコード"),
       records: [],
     };
@@ -124,6 +137,7 @@ async function checkDmarcRecord(
     if (dmarcRecords.length === 0) {
       return {
         status: "warning",
+        reason: "missing",
         message: "DMARCレコードが見つかりませんでした。",
         records: [],
       };
@@ -132,6 +146,7 @@ async function checkDmarcRecord(
     if (dmarcRecords.length > 1) {
       return {
         status: "warning",
+        reason: "multiple",
         message: "DMARCレコードが複数設定されています。",
         records: dmarcRecords,
       };
@@ -139,6 +154,7 @@ async function checkDmarcRecord(
 
     return {
       status: "success",
+      reason: "configured",
       message: "DMARCレコードが設定されています。",
       records: dmarcRecords,
       details: getDmarcDetails(dmarcRecords[0]),
@@ -146,6 +162,7 @@ async function checkDmarcRecord(
   } catch (error) {
     return {
       status: "warning",
+      reason: getDnsErrorReason(error),
       message: getDnsErrorMessage(error, "DMARCレコード"),
       records: [],
     };
@@ -189,6 +206,26 @@ function getDmarcDetails(record: string): string[] {
     `ポリシー：${policy}`,
     policyMessages[policy] ?? "未対応のポリシーです。",
   ];
+}
+
+function getDnsErrorReason(error: unknown): CheckReason {
+  const dnsError =
+    typeof error === "object" && error !== null
+      ? (error as DnsError)
+      : null;
+
+  switch (dnsError?.code) {
+    case "ENODATA":
+      return "missing";
+    case "ENOTFOUND":
+      return "domain-not-found";
+    case "ETIMEOUT":
+      return "timeout";
+    case "ESERVFAIL":
+      return "server-error";
+    default:
+      return "lookup-failed";
+  }
 }
 
 function getDnsErrorMessage(error: unknown, recordName: string): string {

@@ -83,17 +83,48 @@ function getCustomerMxMessage(result: DnsCheckResult): string {
 }
 
 function getCustomerSpfMessage(result: DnsCheckResult): string {
-  if (result.spf.status === "success") {
-    return "メールの送信元を確認する設定が登録されています。";
+  switch (result.spf.reason) {
+    case "configured":
+      return "メールの送信元を確認する設定が登録されています。";
+    case "missing":
+      return "メールの送信元を確認する設定が見つかりませんでした。";
+    case "multiple":
+      return "メールの送信元を確認する設定が複数登録されています。設定内容をご確認ください。";
+    default:
+      return getCustomerLookupFailureMessage(
+        "メールの送信元を確認する設定",
+        result.spf.reason,
+      );
   }
-
-  return "メールの送信元を確認する設定が見つかりませんでした。";
 }
 
 function getCustomerDmarcMessage(result: DnsCheckResult): string {
-  if (result.dmarc.status === "success") {
-    return "なりすましメール対策の設定が登録されています。";
+  switch (result.dmarc.reason) {
+    case "configured":
+      return "なりすましメール対策の設定が登録されています。";
+    case "missing":
+      return "なりすましメール対策の設定が未登録です。必要に応じて追加設定をご検討ください。";
+    case "multiple":
+      return "なりすましメール対策の設定が複数登録されています。設定内容をご確認ください。";
+    default:
+      return getCustomerLookupFailureMessage(
+        "なりすましメール対策の設定",
+        result.dmarc.reason,
+      );
+  }
+}
+
+function getCustomerLookupFailureMessage(
+  subject: string,
+  reason: DnsCheckResult["spf"]["reason"],
+): string {
+  if (reason === "domain-not-found") {
+    return `${subject}を確認できませんでした。ドメイン名をご確認ください。`;
   }
 
-  return "なりすましメール対策の設定が未登録です。必要に応じて追加設定をご検討ください。";
+  if (reason === "timeout" || reason === "server-error") {
+    return `${subject}を確認できませんでした。時間を置いて再度お試しください。`;
+  }
+
+  return `${subject}を確認できませんでした。設定内容をご確認ください。`;
 }

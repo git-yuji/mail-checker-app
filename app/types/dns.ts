@@ -1,5 +1,15 @@
 export type CheckStatus = "success" | "warning" | "error";
 
+export type CheckReason =
+  | "configured"
+  | "missing"
+  | "multiple"
+  | "null-mx"
+  | "domain-not-found"
+  | "timeout"
+  | "server-error"
+  | "lookup-failed";
+
 export type MxRecord = {
   exchange: string;
   priority: number;
@@ -7,6 +17,7 @@ export type MxRecord = {
 
 export type RecordCheck<T> = {
   status: CheckStatus;
+  reason: CheckReason;
   message: string;
   records: T;
   details?: string[];
