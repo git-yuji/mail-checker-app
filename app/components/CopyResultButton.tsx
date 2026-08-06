@@ -4,9 +4,13 @@ import { useState } from "react";
 
 type CopyResultButtonProps = {
   text: string;
+  label: string;
 };
 
-export default function CopyResultButton({ text }: CopyResultButtonProps) {
+export default function CopyResultButton({
+  text,
+  label,
+}: CopyResultButtonProps) {
   const [isCopied, setIsCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -28,7 +32,7 @@ export default function CopyResultButton({ text }: CopyResultButtonProps) {
       onClick={handleCopy}
       className="shrink-0 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-4 focus:ring-blue-100"
     >
-      {isCopied ? "コピーしました" : "診断結果をコピー"}
+      {isCopied ? "コピーしました" : label}
     </button>
   );
 }
