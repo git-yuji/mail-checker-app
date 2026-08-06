@@ -2,7 +2,10 @@
 
 import { FormEvent, useState } from "react";
 import { isValidDomain } from "@/app/lib/domain";
-import { formatDnsResult } from "@/app/lib/format-result";
+import {
+  formatCustomerResult,
+  formatTechnicalResult,
+} from "@/app/lib/format-result";
 import type { DnsCheckResult } from "@/app/types/dns";
 import CopyResultButton from "./CopyResultButton";
 import DnsResultCard from "./DnsResultCard";
@@ -119,7 +122,16 @@ export default function DomainForm() {
               </h2>
             </div>
 
-            <CopyResultButton text={formatDnsResult(result.result)} />
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <CopyResultButton
+                label="技術者向けをコピー"
+                text={formatTechnicalResult(result.result)}
+              />
+              <CopyResultButton
+                label="顧客向けをコピー"
+                text={formatCustomerResult(result.result)}
+              />
+            </div>
           </div>
 
           <div className="mt-4 grid gap-4 lg:grid-cols-3">

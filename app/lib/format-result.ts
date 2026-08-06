@@ -7,13 +7,15 @@ import type {
 
 type DnsRecord = string | MxRecord;
 
+export type ResultMode = "technical" | "customer";
+
 const statusLabels: Record<CheckStatus, string> = {
   success: "正常",
   warning: "要確認",
   error: "エラー",
 };
 
-export function formatDnsResult(result: DnsCheckResult): string {
+export function formatTechnicalResult(result: DnsCheckResult): string {
   return [
     "メール設定診断結果",
     "",
@@ -24,6 +26,18 @@ export function formatDnsResult(result: DnsCheckResult): string {
     formatRecordSection("SPFレコード", result.spf),
     "",
     formatRecordSection("DMARCレコード", result.dmarc),
+  ].join("\n");
+}
+
+export function formatCustomerResult(result: DnsCheckResult): string {
+  return [
+    "メール設定の確認結果",
+    "",
+    `${result.domain} のメール設定を確認しました。`,
+    "",
+    getCustomerMxMessage(result),
+    getCustomerSpfMessage(result),
+    getCustomerDmarcMessage(result),
   ].join("\n");
 }
 
@@ -58,4 +72,28 @@ function formatRecord(record: DnsRecord): string {
   }
 
   return `優先度 ${record.priority}：${record.exchange}`;
+}
+
+function getCustomerMxMessage(result: DnsCheckResult): string {
+  if (result.mx.status === "success") {
+    return "メールの受信設定は正常です。";
+  }
+
+  return "メールの受信設定を確認できませんでした。設定内容をご確認ください。";
+}
+
+function getCustomerSpfMessage(result: DnsCheckResult): string {
+  if (result.spf.status === "success") {
+    return "メールの送信元を確認する設定が登録されています。";
+  }
+
+  return "メールの送信元を確認する設定が見つかりませんでした。";
+}
+
+function getCustomerDmarcMessage(result: DnsCheckResult): string {
+  if (result.dmarc.status === "success") {
+    return "なりすましメール対策の設定が登録されています。";
+  }
+
+  return "なりすましメール対策の設定が未登録です。必要に応じて追加設定をご検討ください。";
 }
