@@ -11,6 +11,8 @@ type DnsError = Error & {
   code?: string;
 };
 
+export const DNS_LOOKUP_TIMEOUT_MS = 5000;
+
 export async function checkDnsRecords(domain: string): Promise<DnsCheckResult> {
   const [mx, spf, dmarc] = await Promise.all([
     checkMxRecord(domain),
@@ -26,9 +28,11 @@ export async function checkDnsRecords(domain: string): Promise<DnsCheckResult> {
   };
 }
 
-async function checkMxRecord(domain: string): Promise<RecordCheck<MxRecord[]>> {
+async function checkMxRecord(
+  domain: string,
+): Promise<RecordCheck<MxRecord[]>> {
   try {
-    const records = await resolveMx(domain);
+    const records = await withDnsTimeout(resolveMx(domain));
 
     const sortedRecords = records.sort(
       (firstRecord, secondRecord) =>
@@ -79,9 +83,11 @@ async function checkMxRecord(domain: string): Promise<RecordCheck<MxRecord[]>> {
   }
 }
 
-async function checkSpfRecord(domain: string): Promise<RecordCheck<string[]>> {
+async function checkSpfRecord(
+  domain: string,
+): Promise<RecordCheck<string[]>> {
   try {
-    const txtRecords = await resolveTxt(domain);
+    const txtRecords = await withDnsTimeout(resolveTxt(domain));
     const normalizedRecords = normalizeTxtRecords(txtRecords);
 
     const spfRecords = normalizedRecords.filter((record) =>
@@ -127,7 +133,7 @@ async function checkDmarcRecord(
   domain: string,
 ): Promise<RecordCheck<string[]>> {
   try {
-    const txtRecords = await resolveTxt(`_dmarc.${domain}`);
+    const txtRecords = await withDnsTimeout(resolveTxt(`_dmarc.${domain}`));
     const normalizedRecords = normalizeTxtRecords(txtRecords);
 
     const dmarcRecords = normalizedRecords.filter((record) =>
@@ -180,6 +186,26 @@ async function checkDmarcRecord(
 
 function normalizeTxtRecords(records: string[][]): string[] {
   return records.map((record) => record.join(""));
+}
+
+async function withDnsTimeout<T>(lookup: Promise<T>): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      const error = new Error("DNS lookup timed out") as DnsError;
+      error.code = "ETIMEOUT";
+      reject(error);
+    }, DNS_LOOKUP_TIMEOUT_MS);
+  });
+
+  try {
+    return await Promise.race([lookup, timeout]);
+  } finally {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
+  }
 }
 
 function getSpfDetails(record: string): string[] {
