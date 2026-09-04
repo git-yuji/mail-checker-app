@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { checkDnsRecords } from "@/app/lib/dns";
 import { isValidDomain } from "@/app/lib/domain";
 import { checkRateLimit } from "@/app/lib/rate-limit";
+import { readJsonRequest } from "@/app/lib/request";
 
 export const runtime = "nodejs";
 
@@ -43,11 +44,29 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: unknown;
+  const jsonRequest = await readJsonRequest(request);
 
-  try {
-    body = await request.json();
-  } catch {
+  if (jsonRequest.status === "unsupported-media-type") {
+    return NextResponse.json(
+      {
+        status: "error",
+        message: "Content-Typeはapplication/jsonを指定してください。",
+      },
+      { status: 415 },
+    );
+  }
+
+  if (jsonRequest.status === "too-large") {
+    return NextResponse.json(
+      {
+        status: "error",
+        message: "リクエストのサイズが大きすぎます。",
+      },
+      { status: 413 },
+    );
+  }
+
+  if (jsonRequest.status === "invalid") {
     return NextResponse.json(
       {
         status: "error",
@@ -57,13 +76,19 @@ export async function POST(request: Request) {
     );
   }
 
-  const domain =
-    typeof body === "object" &&
-    body !== null &&
-    "domain" in body &&
-    typeof body.domain === "string"
-      ? body.domain.trim().toLowerCase()
-      : "";
+  const body = jsonRequest.body;
+
+  if (!hasOnlyDomainProperty(body)) {
+    return NextResponse.json(
+      {
+        status: "error",
+        message: "リクエストの形式が正しくありません。",
+      },
+      { status: 400 },
+    );
+  }
+
+  const domain = body.domain.trim().toLowerCase();
 
   if (!domain) {
     return NextResponse.json(
@@ -104,4 +129,20 @@ export async function POST(request: Request) {
       { status: 500 },
     );
   }
+}
+
+function hasOnlyDomainProperty(
+  body: unknown,
+): body is { domain: string } {
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    return false;
+  }
+
+  const record = body as Record<string, unknown>;
+
+  return (
+    Object.keys(record).length === 1 &&
+    Object.hasOwn(record, "domain") &&
+    typeof record.domain === "string"
+  );
 }

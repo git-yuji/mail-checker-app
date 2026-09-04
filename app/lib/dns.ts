@@ -1,4 +1,4 @@
-import { resolveMx, resolveTxt } from "node:dns/promises";
+import { Resolver } from "node:dns/promises";
 
 import type {
   CheckReason,
@@ -11,11 +11,18 @@ type DnsError = Error & {
   code?: string;
 };
 
+export const DNS_LOOKUP_TIMEOUT_MS = 5000;
+
 export async function checkDnsRecords(domain: string): Promise<DnsCheckResult> {
+  const resolver = new Resolver({
+    timeout: DNS_LOOKUP_TIMEOUT_MS,
+    tries: 1,
+  });
+
   const [mx, spf, dmarc] = await Promise.all([
-    checkMxRecord(domain),
-    checkSpfRecord(domain),
-    checkDmarcRecord(domain),
+    checkMxRecord(domain, resolver),
+    checkSpfRecord(domain, resolver),
+    checkDmarcRecord(domain, resolver),
   ]);
 
   return {
@@ -26,9 +33,12 @@ export async function checkDnsRecords(domain: string): Promise<DnsCheckResult> {
   };
 }
 
-async function checkMxRecord(domain: string): Promise<RecordCheck<MxRecord[]>> {
+async function checkMxRecord(
+  domain: string,
+  resolver: Resolver,
+): Promise<RecordCheck<MxRecord[]>> {
   try {
-    const records = await resolveMx(domain);
+    const records = await resolver.resolveMx(domain);
 
     const sortedRecords = records.sort(
       (firstRecord, secondRecord) =>
@@ -79,9 +89,12 @@ async function checkMxRecord(domain: string): Promise<RecordCheck<MxRecord[]>> {
   }
 }
 
-async function checkSpfRecord(domain: string): Promise<RecordCheck<string[]>> {
+async function checkSpfRecord(
+  domain: string,
+  resolver: Resolver,
+): Promise<RecordCheck<string[]>> {
   try {
-    const txtRecords = await resolveTxt(domain);
+    const txtRecords = await resolver.resolveTxt(domain);
     const normalizedRecords = normalizeTxtRecords(txtRecords);
 
     const spfRecords = normalizedRecords.filter((record) =>
@@ -125,9 +138,10 @@ async function checkSpfRecord(domain: string): Promise<RecordCheck<string[]>> {
 
 async function checkDmarcRecord(
   domain: string,
+  resolver: Resolver,
 ): Promise<RecordCheck<string[]>> {
   try {
-    const txtRecords = await resolveTxt(`_dmarc.${domain}`);
+    const txtRecords = await resolver.resolveTxt(`_dmarc.${domain}`);
     const normalizedRecords = normalizeTxtRecords(txtRecords);
 
     const dmarcRecords = normalizedRecords.filter((record) =>

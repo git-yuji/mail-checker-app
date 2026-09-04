@@ -84,6 +84,7 @@ export default function DomainForm() {
             id="domain"
             name="domain"
             type="text"
+            maxLength={253}
             value={domain}
             onChange={(event) => {
               setDomain(event.target.value);
