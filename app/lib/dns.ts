@@ -1,4 +1,4 @@
-import { Resolver } from "node:dns/promises";
+import { resolveMx, resolveTxt } from "node:dns/promises";
 
 import type {
   CheckReason,
@@ -14,15 +14,10 @@ type DnsError = Error & {
 export const DNS_LOOKUP_TIMEOUT_MS = 5000;
 
 export async function checkDnsRecords(domain: string): Promise<DnsCheckResult> {
-  const resolver = new Resolver({
-    timeout: DNS_LOOKUP_TIMEOUT_MS,
-    tries: 1,
-  });
-
   const [mx, spf, dmarc] = await Promise.all([
-    checkMxRecord(domain, resolver),
-    checkSpfRecord(domain, resolver),
-    checkDmarcRecord(domain, resolver),
+    checkMxRecord(domain),
+    checkSpfRecord(domain),
+    checkDmarcRecord(domain),
   ]);
 
   return {
@@ -35,10 +30,9 @@ export async function checkDnsRecords(domain: string): Promise<DnsCheckResult> {
 
 async function checkMxRecord(
   domain: string,
-  resolver: Resolver,
 ): Promise<RecordCheck<MxRecord[]>> {
   try {
-    const records = await resolver.resolveMx(domain);
+    const records = await withDnsTimeout(resolveMx(domain));
 
     const sortedRecords = records.sort(
       (firstRecord, secondRecord) =>
@@ -91,10 +85,9 @@ async function checkMxRecord(
 
 async function checkSpfRecord(
   domain: string,
-  resolver: Resolver,
 ): Promise<RecordCheck<string[]>> {
   try {
-    const txtRecords = await resolver.resolveTxt(domain);
+    const txtRecords = await withDnsTimeout(resolveTxt(domain));
     const normalizedRecords = normalizeTxtRecords(txtRecords);
 
     const spfRecords = normalizedRecords.filter((record) =>
@@ -138,10 +131,9 @@ async function checkSpfRecord(
 
 async function checkDmarcRecord(
   domain: string,
-  resolver: Resolver,
 ): Promise<RecordCheck<string[]>> {
   try {
-    const txtRecords = await resolver.resolveTxt(`_dmarc.${domain}`);
+    const txtRecords = await withDnsTimeout(resolveTxt(`_dmarc.${domain}`));
     const normalizedRecords = normalizeTxtRecords(txtRecords);
 
     const dmarcRecords = normalizedRecords.filter((record) =>
@@ -194,6 +186,26 @@ async function checkDmarcRecord(
 
 function normalizeTxtRecords(records: string[][]): string[] {
   return records.map((record) => record.join(""));
+}
+
+async function withDnsTimeout<T>(lookup: Promise<T>): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      const error = new Error("DNS lookup timed out") as DnsError;
+      error.code = "ETIMEOUT";
+      reject(error);
+    }, DNS_LOOKUP_TIMEOUT_MS);
+  });
+
+  try {
+    return await Promise.race([lookup, timeout]);
+  } finally {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
+  }
 }
 
 function getSpfDetails(record: string): string[] {
