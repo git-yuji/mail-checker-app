@@ -10,5 +10,15 @@
   },
   "observability": {
     "enabled": true
-  }
+  },
+  "ratelimits": [
+    {
+      "name": "MAIL_CHECK_RATE_LIMITER",
+      "namespace_id": "10004001",
+      "simple": {
+        "limit": 10,
+        "period": 60
+      }
+    }
+  ]
 }

@@ -2,10 +2,47 @@ import { NextResponse } from "next/server";
 
 import { checkDnsRecords } from "@/app/lib/dns";
 import { isValidDomain } from "@/app/lib/domain";
+import { checkRateLimit } from "@/app/lib/rate-limit";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  const rateLimitResult = await checkRateLimit(request);
+
+  if (rateLimitResult.status === "limited") {
+    return NextResponse.json(
+      {
+        status: "error",
+        message:
+          "診断回数の上限に達しました。1分ほど待ってから再度お試しください。",
+      },
+      {
+        status: 429,
+        headers: {
+          "Cache-Control": "no-store",
+          "Retry-After": "60",
+        },
+      },
+    );
+  }
+
+  if (rateLimitResult.status === "unavailable") {
+    return NextResponse.json(
+      {
+        status: "error",
+        message:
+          "現在、診断サービスを利用できません。時間を置いて再度お試しください。",
+      },
+      {
+        status: 503,
+        headers: {
+          "Cache-Control": "no-store",
+          "Retry-After": "60",
+        },
+      },
+    );
+  }
+
   let body: unknown;
 
   try {
