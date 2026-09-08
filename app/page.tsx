@@ -22,7 +22,7 @@ export default function Home() {
             </h1>
 
             <p className="mx-auto mt-6 max-w-2xl leading-8 text-slate-600">
-              ドメインを入力すると、SPF・DMARC・MXレコードなどの
+              ドメインとDKIMセレクタを入力すると、SPF・DMARC・MX・DKIMレコードなどの
               メールに関するDNS設定を確認できます。
             </p>
 
@@ -46,7 +46,7 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-3">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
               <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <p className="text-sm font-bold text-blue-600">SPF</p>
 
@@ -74,6 +74,16 @@ export default function Home() {
 
                 <p className="mt-3 leading-7 text-slate-600">
                   メールを受信するサーバーが設定されているか確認します。
+                </p>
+              </article>
+
+              <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <p className="text-sm font-bold text-blue-600">DKIM</p>
+
+                <h3 className="mt-2 text-lg font-bold">署名鍵の確認</h3>
+
+                <p className="mt-3 leading-7 text-slate-600">
+                  指定したセレクタの公開鍵がDNSに設定されているか確認します。
                 </p>
               </article>
             </div>

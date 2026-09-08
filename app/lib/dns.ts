@@ -13,18 +13,24 @@ type DnsError = Error & {
 
 export const DNS_LOOKUP_TIMEOUT_MS = 5000;
 
-export async function checkDnsRecords(domain: string): Promise<DnsCheckResult> {
-  const [mx, spf, dmarc] = await Promise.all([
+export async function checkDnsRecords(
+  domain: string,
+  dkimSelector: string,
+): Promise<DnsCheckResult> {
+  const [mx, spf, dmarc, dkim] = await Promise.all([
     checkMxRecord(domain),
     checkSpfRecord(domain),
     checkDmarcRecord(domain),
+    checkDkimRecord(domain, dkimSelector),
   ]);
 
   return {
     domain,
+    dkimSelector,
     mx,
     spf,
     dmarc,
+    dkim,
   };
 }
 
@@ -179,6 +185,62 @@ async function checkDmarcRecord(
       status: "warning",
       reason: getDnsErrorReason(error),
       message: getDnsErrorMessage(error, "DMARCレコード"),
+      records: [],
+    };
+  }
+}
+
+async function checkDkimRecord(
+  domain: string,
+  selector: string,
+): Promise<RecordCheck<string[]>> {
+  try {
+    const txtRecords = await withDnsTimeout(
+      resolveTxt(`${selector}._domainkey.${domain}`),
+    );
+    const normalizedRecords = normalizeTxtRecords(txtRecords);
+    const dkimRecords = normalizedRecords.filter((record) =>
+      /^v=dkim1(?:\s|;|$)/i.test(record),
+    );
+
+    if (dkimRecords.length === 0) {
+      return {
+        status: "warning",
+        reason: "missing",
+        message: `DKIMレコードが見つかりませんでした（セレクタ：${selector}）。`,
+        records: [],
+      };
+    }
+
+    if (dkimRecords.length > 1) {
+      return {
+        status: "warning",
+        reason: "multiple",
+        message: `DKIMレコードが複数設定されています（セレクタ：${selector}）。`,
+        records: dkimRecords,
+      };
+    }
+
+    return {
+      status: "success",
+      reason: "configured",
+      message: `DKIMレコードが設定されています（セレクタ：${selector}）。`,
+      records: dkimRecords,
+    };
+  } catch (error) {
+    if (isDnsError(error, "ENOTFOUND") || isDnsError(error, "ENODATA")) {
+      return {
+        status: "warning",
+        reason: "missing",
+        message: `DKIMレコードが見つかりませんでした（セレクタ：${selector}）。`,
+        records: [],
+      };
+    }
+
+    return {
+      status: "warning",
+      reason: getDnsErrorReason(error),
+      message: getDnsErrorMessage(error, "DKIMレコード"),
       records: [],
     };
   }

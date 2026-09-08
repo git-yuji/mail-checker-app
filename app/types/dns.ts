@@ -25,9 +25,11 @@ export type RecordCheck<T> = {
 
 export type DnsCheckResult = {
   domain: string;
+  dkimSelector: string;
   mx: RecordCheck<MxRecord[]>;
   spf: RecordCheck<string[]>;
   dmarc: RecordCheck<string[]>;
+  dkim: RecordCheck<string[]>;
 };
 
 export type RecommendationLevel = "info" | "warning" | "important";
