@@ -199,9 +199,7 @@ async function checkDkimRecord(
       resolveTxt(`${selector}._domainkey.${domain}`),
     );
     const normalizedRecords = normalizeTxtRecords(txtRecords);
-    const dkimRecords = normalizedRecords.filter((record) =>
-      /^v=dkim1(?:\s|;|$)/i.test(record),
-    );
+    const dkimRecords = normalizedRecords.filter(isUsableDkimRecord);
 
     if (dkimRecords.length === 0) {
       return {
@@ -248,6 +246,38 @@ async function checkDkimRecord(
 
 function normalizeTxtRecords(records: string[][]): string[] {
   return records.map((record) => record.join(""));
+}
+
+function isUsableDkimRecord(record: string): boolean {
+  const tags = new Map<string, string>();
+
+  for (const part of record.split(";")) {
+    const separatorIndex = part.indexOf("=");
+
+    if (separatorIndex < 1) {
+      continue;
+    }
+
+    const name = part.slice(0, separatorIndex).trim().toLowerCase();
+    const value = part.slice(separatorIndex + 1).trim();
+
+    if (name) {
+      tags.set(name, value);
+    }
+  }
+
+  const version = tags.get("v");
+  const publicKey = tags.get("p");
+
+  if (version && version.toLowerCase() !== "dkim1") {
+    return false;
+  }
+
+  if (!publicKey) {
+    return false;
+  }
+
+  return /^[a-zA-Z0-9+/]+={0,2}$/.test(publicKey);
 }
 
 async function withDnsTimeout<T>(lookup: Promise<T>): Promise<T> {

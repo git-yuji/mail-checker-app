@@ -129,7 +129,7 @@ export default function DomainForm() {
             name="dkim-selector"
             type="text"
             list="dkim-selector-suggestions"
-            maxLength={63}
+            maxLength={253}
             value={dkimSelector}
             onChange={(event) => {
               setDkimSelector(event.target.value);

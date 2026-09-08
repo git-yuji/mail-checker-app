@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 
 import { checkDnsRecords } from "@/app/lib/dns";
-import { isValidDkimSelector, isValidDomain } from "@/app/lib/domain";
+import {
+  isValidDkimRecordName,
+  isValidDkimSelector,
+  isValidDomain,
+} from "@/app/lib/domain";
 import { checkRateLimit } from "@/app/lib/rate-limit";
 import { readJsonRequest } from "@/app/lib/request";
 
@@ -126,6 +130,16 @@ export async function POST(request: Request) {
       {
         status: "error",
         message: "DKIMセレクタの形式が正しくありません。",
+      },
+      { status: 400 },
+    );
+  }
+
+  if (!isValidDkimRecordName(domain, dkimSelector)) {
+    return NextResponse.json(
+      {
+        status: "error",
+        message: "DKIMレコード名が長すぎます。",
       },
       { status: 400 },
     );
