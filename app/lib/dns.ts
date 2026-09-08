@@ -277,7 +277,9 @@ function isUsableDkimRecord(record: string): boolean {
     return false;
   }
 
-  return /^[a-zA-Z0-9+/]+={0,2}$/.test(publicKey);
+  const normalizedPublicKey = publicKey.replace(/\s/g, "");
+
+  return /^[a-zA-Z0-9+/]+={0,2}$/.test(normalizedPublicKey);
 }
 
 async function withDnsTimeout<T>(lookup: Promise<T>): Promise<T> {
