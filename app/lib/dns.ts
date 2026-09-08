@@ -267,9 +267,26 @@ function isUsableDkimRecord(record: string): boolean {
   }
 
   const version = tags.get("v");
+  const keyType = tags.get("k")?.toLowerCase() ?? "rsa";
   const publicKey = tags.get("p");
+  const serviceTypes = tags.get("s");
 
   if (version && version.toLowerCase() !== "dkim1") {
+    return false;
+  }
+
+  if (keyType !== "rsa" && keyType !== "ed25519") {
+    return false;
+  }
+
+  if (
+    serviceTypes &&
+    !serviceTypes.split(":").some((serviceType) => {
+      const normalizedServiceType = serviceType.trim().toLowerCase();
+
+      return normalizedServiceType === "email" || normalizedServiceType === "*";
+    })
+  ) {
     return false;
   }
 
