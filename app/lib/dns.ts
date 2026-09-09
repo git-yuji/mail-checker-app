@@ -278,7 +278,7 @@ function parseDkimRecord(record: string): ParsedDkimRecord {
       continue;
     }
 
-    const name = part.slice(0, separatorIndex).trim().toLowerCase();
+    const name = part.slice(0, separatorIndex).trim();
     const value = part.slice(separatorIndex + 1).trim();
 
     firstTagName ??= name;
