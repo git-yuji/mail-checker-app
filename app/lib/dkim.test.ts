@@ -52,6 +52,31 @@ describe("evaluateDkimRecords", () => {
       expected: "invalid",
     },
     {
+      name: "不正な未知タグ名を構文不正と判定する",
+      records: [`bad name=foo; p=${rsaPublicKey}`],
+      expected: "invalid",
+    },
+    {
+      name: "記号を含む未知タグ名を構文不正と判定する",
+      records: [`x!=foo; p=${rsaPublicKey}`],
+      expected: "invalid",
+    },
+    {
+      name: "先頭の空要素を構文不正と判定する",
+      records: [`;v=DKIM1; p=${rsaPublicKey}`],
+      expected: "invalid",
+    },
+    {
+      name: "途中の空要素を構文不正と判定する",
+      records: [`v=DKIM1;; p=${rsaPublicKey}`],
+      expected: "invalid",
+    },
+    {
+      name: "末尾のセミコロンを許可する",
+      records: [`v=DKIM1; p=${rsaPublicKey};`],
+      expected: "usable",
+    },
+    {
       name: "vタグが先頭でない鍵を構文不正と判定する",
       records: [`p=${rsaPublicKey}; v=DKIM1`],
       expected: "invalid",
@@ -72,6 +97,16 @@ describe("evaluateDkimRecords", () => {
       expected: "usable",
     },
     {
+      name: "空のハッシュアルゴリズム要素を構文不正と判定する",
+      records: [`v=DKIM1; h=sha256::sha1; p=${rsaPublicKey}`],
+      expected: "invalid",
+    },
+    {
+      name: "ハイフンで終わるハッシュアルゴリズムを構文不正と判定する",
+      records: [`v=DKIM1; h=sha256:future-; p=${rsaPublicKey}`],
+      expected: "invalid",
+    },
+    {
       name: "未対応の鍵種別を構文不正と判定する",
       records: [`v=DKIM1; k=unknown; p=${rsaPublicKey}`],
       expected: "invalid",
@@ -87,8 +122,33 @@ describe("evaluateDkimRecords", () => {
       expected: "usable",
     },
     {
+      name: "空のサービス種別要素を構文不正と判定する",
+      records: [`v=DKIM1; s=email::other; p=${rsaPublicKey}`],
+      expected: "invalid",
+    },
+    {
+      name: "空のフラグ要素を構文不正と判定する",
+      records: [`v=DKIM1; t=y::s; p=${rsaPublicKey}`],
+      expected: "invalid",
+    },
+    {
+      name: "正しいフラグ一覧を持つ鍵を利用可能と判定する",
+      records: [`v=DKIM1; t=y:s; p=${rsaPublicKey}`],
+      expected: "usable",
+    },
+    {
       name: "1024ビット未満のRSA鍵を構文不正と判定する",
       records: [`v=DKIM1; p=${weakRsaPublicKey}`],
+      expected: "invalid",
+    },
+    {
+      name: "余分なBase64パディングを構文不正と判定する",
+      records: [`v=DKIM1; p=${rsaPublicKey}===`],
+      expected: "invalid",
+    },
+    {
+      name: "途中にパディングがある公開鍵を構文不正と判定する",
+      records: [`v=DKIM1; p=${rsaPublicKey.slice(0, 20)}=${rsaPublicKey.slice(20)}`],
       expected: "invalid",
     },
     {

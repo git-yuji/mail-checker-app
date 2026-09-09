@@ -43,13 +43,20 @@ export function evaluateDkimRecords(records: string[]): DkimRecordEvaluation {
     return { state: "invalid", records: [record] };
   }
 
-  if (publicKey.replace(/\s/g, "") === "") {
+  const normalizedPublicKey = removeFoldingWhitespace(publicKey);
+
+  if (normalizedPublicKey === null) {
+    return { state: "invalid", records: [record] };
+  }
+
+  if (normalizedPublicKey === "") {
     return { state: "revoked", records: [record] };
   }
 
   if (
     !allowsSha256(parsedRecord.tags) ||
-    !allowsEmailService(parsedRecord.tags)
+    !allowsEmailService(parsedRecord.tags) ||
+    !hasValidFlags(parsedRecord.tags)
   ) {
     return { state: "invalid", records: [record] };
   }
@@ -71,11 +78,16 @@ function parseDkimRecord(record: string): ParsedDkimRecord {
   let firstTagName: string | undefined;
   let hasDkimVersion = false;
   let isValid = true;
+  const parts = record.split(";");
 
-  for (const rawPart of record.split(";")) {
+  for (const [index, rawPart] of parts.entries()) {
     const part = rawPart.trim();
 
     if (!part) {
+      if (index !== parts.length - 1) {
+        isValid = false;
+      }
+
       continue;
     }
 
@@ -91,7 +103,7 @@ function parseDkimRecord(record: string): ParsedDkimRecord {
 
     firstTagName ??= name;
 
-    if (!name || tags.has(name)) {
+    if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(name) || tags.has(name)) {
       isValid = false;
       continue;
     }
@@ -124,11 +136,11 @@ function allowsSha256(tags: Map<string, string>): boolean {
     return true;
   }
 
-  return Boolean(
-    tags
-      .get("h")
-      ?.split(":")
-      .some((algorithm) => algorithm.trim().toLowerCase() === "sha256"),
+  const algorithms = parseColonSeparatedValues(tags.get("h"));
+
+  return (
+    algorithms !== null &&
+    algorithms.some((algorithm) => algorithm.toLowerCase() === "sha256")
   );
 }
 
@@ -137,25 +149,69 @@ function allowsEmailService(tags: Map<string, string>): boolean {
     return true;
   }
 
-  return Boolean(
-    tags
-      .get("s")
-      ?.split(":")
-      .some((serviceType) => {
-        const normalizedServiceType = serviceType.trim().toLowerCase();
+  const serviceTypes = parseColonSeparatedValues(tags.get("s"), true);
 
-        return normalizedServiceType === "email" || normalizedServiceType === "*";
-      }),
+  return (
+    serviceTypes !== null &&
+    serviceTypes.some((serviceType) => {
+      const normalizedServiceType = serviceType.toLowerCase();
+
+      return normalizedServiceType === "email" || normalizedServiceType === "*";
+    })
   );
 }
 
+function hasValidFlags(tags: Map<string, string>): boolean {
+  if (!tags.has("t")) {
+    return true;
+  }
+
+  return parseColonSeparatedValues(tags.get("t")) !== null;
+}
+
+function parseColonSeparatedValues(
+  value: string | undefined,
+  allowsWildcard = false,
+): string[] | null {
+  if (value === undefined) {
+    return null;
+  }
+
+  const values = value.split(":").map((item) => item.trim());
+  const hyphenatedWordPattern =
+    /^[a-zA-Z](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?$/;
+
+  const areValid = values.every(
+    (item) =>
+      (allowsWildcard && item === "*") || hyphenatedWordPattern.test(item),
+  );
+
+  return areValid ? values : null;
+}
+
 function isValidPublicKey(publicKey: string, keyType: string): boolean {
-  const normalizedPublicKey = publicKey.replace(/\s/g, "");
-  const unpaddedPublicKey = normalizedPublicKey.replace(/=+$/, "");
+  const normalizedPublicKey = removeFoldingWhitespace(publicKey);
+
+  if (normalizedPublicKey === null) {
+    return false;
+  }
+
+  const base64Match = normalizedPublicKey.match(
+    /^([a-zA-Z0-9+/]+)(={0,2})$/,
+  );
+
+  if (!base64Match) {
+    return false;
+  }
+
+  const unpaddedPublicKey = base64Match[1];
+  const padding = base64Match[2];
+  const remainder = unpaddedPublicKey.length % 4;
+  const expectedPaddingLength = (4 - remainder) % 4;
 
   if (
-    !/^[a-zA-Z0-9+/]+$/.test(unpaddedPublicKey) ||
-    unpaddedPublicKey.length % 4 === 1
+    remainder === 1 ||
+    (padding.length > 0 && padding.length !== expectedPaddingLength)
   ) {
     return false;
   }
@@ -166,11 +222,25 @@ function isValidPublicKey(publicKey: string, keyType: string): boolean {
   );
   const decodedPublicKey = Buffer.from(paddedPublicKey, "base64");
 
+  if (decodedPublicKey.toString("base64") !== paddedPublicKey) {
+    return false;
+  }
+
   if (keyType === "ed25519") {
     return isValidEd25519PublicKey(decodedPublicKey);
   }
 
   return isValidRsaPublicKey(decodedPublicKey);
+}
+
+function removeFoldingWhitespace(value: string): string | null {
+  const unfoldedValue = value.replace(/\r\n[ \t]+/g, "");
+
+  if (/[\r\n]/.test(unfoldedValue)) {
+    return null;
+  }
+
+  return unfoldedValue.replace(/[ \t]/g, "");
 }
 
 function isValidEd25519PublicKey(publicKey: Buffer): boolean {
