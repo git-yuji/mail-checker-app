@@ -12,6 +12,12 @@ type DnsError = Error & {
   code?: string;
 };
 
+type ParsedDkimRecord = {
+  tags: Map<string, string>;
+  hasDkimVersion: boolean;
+  isValid: boolean;
+};
+
 export const DNS_LOOKUP_TIMEOUT_MS = 5000;
 
 export async function checkDnsRecords(
@@ -251,41 +257,57 @@ function normalizeTxtRecords(records: string[][]): string[] {
   return records.map((record) => record.join(""));
 }
 
-function parseDkimTags(record: string): Map<string, string> {
+function parseDkimRecord(record: string): ParsedDkimRecord {
   const tags = new Map<string, string>();
+  let hasDkimVersion = false;
+  let isValid = true;
 
-  for (const part of record.split(";")) {
+  for (const rawPart of record.split(";")) {
+    const part = rawPart.trim();
+
+    if (!part) {
+      continue;
+    }
+
     const separatorIndex = part.indexOf("=");
 
     if (separatorIndex < 1) {
+      isValid = false;
       continue;
     }
 
     const name = part.slice(0, separatorIndex).trim().toLowerCase();
     const value = part.slice(separatorIndex + 1).trim();
 
-    if (name) {
-      tags.set(name, value);
+    if (!name || tags.has(name)) {
+      isValid = false;
+      continue;
+    }
+
+    tags.set(name, value);
+
+    if (name === "v" && value.toLowerCase() === "dkim1") {
+      hasDkimVersion = true;
     }
   }
 
-  return tags;
+  return { tags, hasDkimVersion, isValid };
 }
 
 function isDkimRecordCandidate(record: string): boolean {
-  const tags = parseDkimTags(record);
+  const { tags, hasDkimVersion } = parseDkimRecord(record);
 
-  return ["v", "p", "k", "s"].some((tag) => tags.has(tag));
+  return hasDkimVersion || tags.has("p");
 }
 
 function isUsableDkimRecord(record: string): boolean {
-  const tags = parseDkimTags(record);
+  const { tags, isValid } = parseDkimRecord(record);
   const version = tags.get("v");
   const keyType = tags.get("k")?.toLowerCase() ?? "rsa";
   const publicKey = tags.get("p");
   const serviceTypes = tags.get("s");
 
-  if (version && version.toLowerCase() !== "dkim1") {
+  if (!isValid || (version && version.toLowerCase() !== "dkim1")) {
     return false;
   }
 
@@ -358,7 +380,10 @@ function isValidDkimPublicKey(publicKey: string, keyType: string): boolean {
       type: "pkcs1",
     });
 
-    return key.asymmetricKeyType === "rsa";
+    return (
+      key.asymmetricKeyType === "rsa" &&
+      (key.asymmetricKeyDetails?.modulusLength ?? 0) >= 1024
+    );
   } catch {
     return false;
   }
