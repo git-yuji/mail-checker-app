@@ -1,3 +1,4 @@
+import { createPublicKey } from "node:crypto";
 import { resolveMx, resolveTxt } from "node:dns/promises";
 
 import type {
@@ -199,9 +200,20 @@ async function checkDkimRecord(
       resolveTxt(`${selector}._domainkey.${domain}`),
     );
     const normalizedRecords = normalizeTxtRecords(txtRecords);
-    const dkimRecords = normalizedRecords.filter(isUsableDkimRecord);
+    const dkimCandidates = normalizedRecords.filter(isDkimRecordCandidate);
 
-    if (dkimRecords.length === 0) {
+    if (dkimCandidates.length > 1) {
+      return {
+        status: "warning",
+        reason: "multiple",
+        message: `DKIMレコードが複数設定されています（セレクタ：${selector}）。`,
+        records: dkimCandidates,
+      };
+    }
+
+    const dkimRecord = dkimCandidates[0];
+
+    if (!dkimRecord || !isUsableDkimRecord(dkimRecord)) {
       return {
         status: "warning",
         reason: "missing",
@@ -210,20 +222,11 @@ async function checkDkimRecord(
       };
     }
 
-    if (dkimRecords.length > 1) {
-      return {
-        status: "warning",
-        reason: "multiple",
-        message: `DKIMレコードが複数設定されています（セレクタ：${selector}）。`,
-        records: dkimRecords,
-      };
-    }
-
     return {
       status: "success",
       reason: "configured",
       message: `DKIMレコードが設定されています（セレクタ：${selector}）。`,
-      records: dkimRecords,
+      records: [dkimRecord],
     };
   } catch (error) {
     if (isDnsError(error, "ENOTFOUND") || isDnsError(error, "ENODATA")) {
@@ -248,7 +251,7 @@ function normalizeTxtRecords(records: string[][]): string[] {
   return records.map((record) => record.join(""));
 }
 
-function isUsableDkimRecord(record: string): boolean {
+function parseDkimTags(record: string): Map<string, string> {
   const tags = new Map<string, string>();
 
   for (const part of record.split(";")) {
@@ -266,6 +269,17 @@ function isUsableDkimRecord(record: string): boolean {
     }
   }
 
+  return tags;
+}
+
+function isDkimRecordCandidate(record: string): boolean {
+  const tags = parseDkimTags(record);
+
+  return ["v", "p", "k", "s"].some((tag) => tags.has(tag));
+}
+
+function isUsableDkimRecord(record: string): boolean {
+  const tags = parseDkimTags(record);
   const version = tags.get("v");
   const keyType = tags.get("k")?.toLowerCase() ?? "rsa";
   const publicKey = tags.get("p");
@@ -294,9 +308,60 @@ function isUsableDkimRecord(record: string): boolean {
     return false;
   }
 
-  const normalizedPublicKey = publicKey.replace(/\s/g, "");
+  return isValidDkimPublicKey(publicKey, keyType);
+}
 
-  return /^[a-zA-Z0-9+/]+={0,2}$/.test(normalizedPublicKey);
+function isValidDkimPublicKey(publicKey: string, keyType: string): boolean {
+  const normalizedPublicKey = publicKey.replace(/\s/g, "");
+  const unpaddedPublicKey = normalizedPublicKey.replace(/=+$/, "");
+
+  if (
+    !/^[a-zA-Z0-9+/]+$/.test(unpaddedPublicKey) ||
+    unpaddedPublicKey.length % 4 === 1
+  ) {
+    return false;
+  }
+
+  const paddedPublicKey = unpaddedPublicKey.padEnd(
+    unpaddedPublicKey.length + ((4 - (unpaddedPublicKey.length % 4)) % 4),
+    "=",
+  );
+  const decodedPublicKey = Buffer.from(paddedPublicKey, "base64");
+
+  if (decodedPublicKey.length === 0) {
+    return false;
+  }
+
+  if (keyType === "ed25519") {
+    if (decodedPublicKey.length !== 32) {
+      return false;
+    }
+
+    try {
+      const spkiPrefix = Buffer.from("302a300506032b6570032100", "hex");
+      const key = createPublicKey({
+        key: Buffer.concat([spkiPrefix, decodedPublicKey]),
+        format: "der",
+        type: "spki",
+      });
+
+      return key.asymmetricKeyType === "ed25519";
+    } catch {
+      return false;
+    }
+  }
+
+  try {
+    const key = createPublicKey({
+      key: decodedPublicKey,
+      format: "der",
+      type: "pkcs1",
+    });
+
+    return key.asymmetricKeyType === "rsa";
+  } catch {
+    return false;
+  }
 }
 
 async function withDnsTimeout<T>(lookup: Promise<T>): Promise<T> {

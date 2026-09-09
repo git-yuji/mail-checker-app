@@ -6,7 +6,7 @@ export function isValidDomain(domain: string) {
 }
 
 const selectorLabelPattern =
-  /^[a-zA-Z0-9_](?:[a-zA-Z0-9_-]{0,61}[a-zA-Z0-9_])?$/;
+  /^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$/;
 
 export function isValidDkimSelector(selector: string) {
   if (selector.length > 253) {
