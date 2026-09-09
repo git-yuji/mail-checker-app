@@ -4,6 +4,8 @@ export type CheckReason =
   | "configured"
   | "missing"
   | "multiple"
+  | "invalid"
+  | "revoked"
   | "null-mx"
   | "domain-not-found"
   | "timeout"

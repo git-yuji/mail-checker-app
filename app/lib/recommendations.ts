@@ -208,6 +208,30 @@ function getDkimRecommendations(result: DnsCheckResult): Recommendation[] {
     ];
   }
 
+  if (result.dkim.reason === "invalid") {
+    return [
+      {
+        id: "dkim-invalid-record",
+        title: "DKIMレコードの内容を修正してください",
+        description:
+          "DKIMレコードは見つかりましたが、タグまたは公開鍵の内容が正しくありません。利用中のメールサービスが指定するレコードと照合してください。",
+        level: "important",
+      },
+    ];
+  }
+
+  if (result.dkim.reason === "revoked") {
+    return [
+      {
+        id: "dkim-revoked-key",
+        title: "DKIM公開鍵を更新してください",
+        description:
+          "DKIMのpタグが空で、公開鍵が失効しています。現在使用している秘密鍵に対応する公開鍵を設定してください。",
+        level: "important",
+      },
+    ];
+  }
+
   return [
     getLookupFailureRecommendation("dkim", "DKIMレコード", result.dkim.reason),
   ];

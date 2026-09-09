@@ -145,6 +145,9 @@ DNSレコードを表示するだけでは、設定に詳しくない方は次�
 dns.ts
 DNS情報を取得して、設定内容を確認する
 
+dkim.ts
+DKIMレコードの構文、失効状態、鍵形式を確認する
+
 domain.ts
 入力されたドメインの形式を確認する
 
@@ -184,6 +187,7 @@ app/
 │
 ├── lib/
 │   ├── dns.ts
+│   ├── dkim.ts
 │   ├── domain.ts
 │   ├── format-result.ts
 │   └── recommendations.ts
@@ -241,6 +245,7 @@ npm run dev
 ### 品質確認
 
 ```bash
+npm test
 npm run lint
 npm run build
 ```
@@ -259,7 +264,7 @@ npm run build
 
 ## 今後追加したい機能
 
-- テストコードの追加
+- 診断ロジックのテスト拡充
 - SPFのDNS Lookup回数と10回制限の確認
 - DMARCレポート設定の確認
 - 診断履歴の保存

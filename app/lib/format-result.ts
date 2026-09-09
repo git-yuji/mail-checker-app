@@ -128,6 +128,10 @@ function getCustomerDkimMessage(result: DnsCheckResult): string {
       return "指定したセレクタのDKIM設定が見つかりませんでした。セレクタが正しいかご確認ください。";
     case "multiple":
       return "指定したセレクタのDKIM設定が複数登録されています。設定内容をご確認ください。";
+    case "invalid":
+      return "指定したセレクタのDKIM設定に誤りがあります。設定内容をご確認ください。";
+    case "revoked":
+      return "指定したセレクタのDKIM公開鍵は失効しています。設定内容をご確認ください。";
     default:
       return getCustomerLookupFailureMessage(
         "DKIM設定",
