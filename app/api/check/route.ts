@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 
 import { checkDnsRecords } from "@/app/lib/dns";
-import { isValidDomain } from "@/app/lib/domain";
+import {
+  isValidDkimRecordName,
+  isValidDkimSelector,
+  isValidDomain,
+} from "@/app/lib/domain";
 import { checkRateLimit } from "@/app/lib/rate-limit";
 import { readJsonRequest } from "@/app/lib/request";
 
@@ -78,7 +82,7 @@ export async function POST(request: Request) {
 
   const body = jsonRequest.body;
 
-  if (!hasOnlyDomainProperty(body)) {
+  if (!hasOnlyCheckProperties(body)) {
     return NextResponse.json(
       {
         status: "error",
@@ -89,6 +93,7 @@ export async function POST(request: Request) {
   }
 
   const domain = body.domain.trim().toLowerCase();
+  const dkimSelector = body.dkimSelector.trim();
 
   if (!domain) {
     return NextResponse.json(
@@ -110,8 +115,38 @@ export async function POST(request: Request) {
     );
   }
 
+  if (!dkimSelector) {
+    return NextResponse.json(
+      {
+        status: "error",
+        message: "DKIMセレクタを入力してください。",
+      },
+      { status: 400 },
+    );
+  }
+
+  if (!isValidDkimSelector(dkimSelector)) {
+    return NextResponse.json(
+      {
+        status: "error",
+        message: "DKIMセレクタの形式が正しくありません。",
+      },
+      { status: 400 },
+    );
+  }
+
+  if (!isValidDkimRecordName(domain, dkimSelector)) {
+    return NextResponse.json(
+      {
+        status: "error",
+        message: "DKIMレコード名が長すぎます。",
+      },
+      { status: 400 },
+    );
+  }
+
   try {
-    const result = await checkDnsRecords(domain);
+    const result = await checkDnsRecords(domain, dkimSelector);
 
     return NextResponse.json({
       status: "success",
@@ -131,9 +166,9 @@ export async function POST(request: Request) {
   }
 }
 
-function hasOnlyDomainProperty(
+function hasOnlyCheckProperties(
   body: unknown,
-): body is { domain: string } {
+): body is { domain: string; dkimSelector: string } {
   if (typeof body !== "object" || body === null || Array.isArray(body)) {
     return false;
   }
@@ -141,8 +176,10 @@ function hasOnlyDomainProperty(
   const record = body as Record<string, unknown>;
 
   return (
-    Object.keys(record).length === 1 &&
+    Object.keys(record).length === 2 &&
     Object.hasOwn(record, "domain") &&
-    typeof record.domain === "string"
+    typeof record.domain === "string" &&
+    Object.hasOwn(record, "dkimSelector") &&
+    typeof record.dkimSelector === "string"
   );
 }

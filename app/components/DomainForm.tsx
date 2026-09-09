@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { isValidDomain } from "@/app/lib/domain";
+import { isValidDkimSelector, isValidDomain } from "@/app/lib/domain";
 import {
   formatCustomerResult,
   formatTechnicalResult,
@@ -19,8 +19,11 @@ type ApiResponse = {
   result?: DnsCheckResult;
 };
 
+const selectorSuggestions = ["google", "selector1", "selector2"];
+
 export default function DomainForm() {
   const [domain, setDomain] = useState("");
+  const [dkimSelector, setDkimSelector] = useState("google");
   const [error, setError] = useState("");
   const [result, setResult] = useState<ApiResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -42,6 +45,20 @@ export default function DomainForm() {
       return;
     }
 
+    const trimmedSelector = dkimSelector.trim();
+
+    if (!trimmedSelector) {
+      setError("DKIMセレクタを入力してください。");
+      setResult(null);
+      return;
+    }
+
+    if (!isValidDkimSelector(trimmedSelector)) {
+      setError("DKIMセレクタの形式が正しくありません。");
+      setResult(null);
+      return;
+    }
+
     setError("");
     setResult(null);
     setIsLoading(true);
@@ -54,6 +71,7 @@ export default function DomainForm() {
         },
         body: JSON.stringify({
           domain: trimmedDomain,
+          dkimSelector: trimmedSelector,
         }),
       });
 
@@ -74,7 +92,7 @@ export default function DomainForm() {
 
   return (
     <div>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4 sm:flex-row">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div className="flex-1">
           <label htmlFor="domain" className="sr-only">
             ドメイン
@@ -99,10 +117,41 @@ export default function DomainForm() {
           )}
         </div>
 
+        <div className="text-left">
+          <label
+            htmlFor="dkim-selector"
+            className="mb-2 block text-sm font-bold text-slate-700"
+          >
+            DKIMセレクタ
+          </label>
+          <input
+            id="dkim-selector"
+            name="dkim-selector"
+            type="text"
+            list="dkim-selector-suggestions"
+            maxLength={253}
+            value={dkimSelector}
+            onChange={(event) => {
+              setDkimSelector(event.target.value);
+              setError("");
+            }}
+            placeholder="google"
+            className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+          />
+          <datalist id="dkim-selector-suggestions">
+            {selectorSuggestions.map((suggestion) => (
+              <option key={suggestion} value={suggestion} />
+            ))}
+          </datalist>
+          <p className="mt-2 text-sm text-slate-500">
+            Google Workspaceはgoogle、Microsoft 365はselector1またはselector2が代表的です。
+          </p>
+        </div>
+
         <button
           type="submit"
           disabled={isLoading}
-          className="h-fit rounded-lg bg-blue-600 px-6 py-3 font-bold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-200 disabled:cursor-not-allowed disabled:bg-blue-300"
+          className="h-fit self-start rounded-lg bg-blue-600 px-6 py-3 font-bold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-200 disabled:cursor-not-allowed disabled:bg-blue-300 sm:self-end"
         >
           {isLoading ? "診断中..." : "診断する"}
         </button>
@@ -158,6 +207,13 @@ export default function DomainForm() {
               message={result.result.dmarc.message}
               records={result.result.dmarc.records}
               details={result.result.dmarc.details}
+            />
+            <DnsResultCard
+              title={`DKIM（${result.result.dkimSelector}）`}
+              status={result.result.dkim.status}
+              message={result.result.dkim.message}
+              records={result.result.dkim.records}
+              details={result.result.dkim.details}
             />
           </div>
 

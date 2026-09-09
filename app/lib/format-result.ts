@@ -26,6 +26,11 @@ export function formatTechnicalResult(result: DnsCheckResult): string {
     formatRecordSection("SPFレコード", result.spf),
     "",
     formatRecordSection("DMARCレコード", result.dmarc),
+    "",
+    formatRecordSection(
+      `DKIMレコード（セレクタ：${result.dkimSelector}）`,
+      result.dkim,
+    ),
   ].join("\n");
 }
 
@@ -38,6 +43,7 @@ export function formatCustomerResult(result: DnsCheckResult): string {
     getCustomerMxMessage(result),
     getCustomerSpfMessage(result),
     getCustomerDmarcMessage(result),
+    getCustomerDkimMessage(result),
   ].join("\n");
 }
 
@@ -110,6 +116,26 @@ function getCustomerDmarcMessage(result: DnsCheckResult): string {
       return getCustomerLookupFailureMessage(
         "なりすましメール対策の設定",
         result.dmarc.reason,
+      );
+  }
+}
+
+function getCustomerDkimMessage(result: DnsCheckResult): string {
+  switch (result.dkim.reason) {
+    case "configured":
+      return "指定したセレクタのDKIM設定が登録されています。";
+    case "missing":
+      return "指定したセレクタのDKIM設定が見つかりませんでした。セレクタが正しいかご確認ください。";
+    case "multiple":
+      return "指定したセレクタのDKIM設定が複数登録されています。設定内容をご確認ください。";
+    case "invalid":
+      return "指定したセレクタのDKIM設定に誤りがあります。設定内容をご確認ください。";
+    case "revoked":
+      return "指定したセレクタのDKIM公開鍵は失効しています。設定内容をご確認ください。";
+    default:
+      return getCustomerLookupFailureMessage(
+        "DKIM設定",
+        result.dkim.reason,
       );
   }
 }

@@ -23,6 +23,7 @@ export function getRecommendations(
     ...getMxRecommendations(result),
     ...getSpfRecommendations(result),
     ...getDmarcRecommendations(result),
+    ...getDkimRecommendations(result),
   ];
 }
 
@@ -177,6 +178,63 @@ function getDmarcRecommendations(result: DnsCheckResult): Recommendation[] {
   }
 
   return [];
+}
+
+function getDkimRecommendations(result: DnsCheckResult): Recommendation[] {
+  if (result.dkim.reason === "configured") {
+    return [];
+  }
+
+  if (result.dkim.reason === "missing") {
+    return [
+      {
+        id: "dkim-not-found",
+        title: "DKIMレコードを確認してください",
+        description: `セレクタ「${result.dkimSelector}」のDKIMレコードが見つかりませんでした。利用中のメールサービスが指定するセレクタとTXTレコードを確認してください。`,
+        level: "warning",
+      },
+    ];
+  }
+
+  if (result.dkim.reason === "multiple") {
+    return [
+      {
+        id: "dkim-multiple-records",
+        title: "DKIMレコードを1つに整理してください",
+        description:
+          "同じセレクタに複数のDKIMレコードが設定されています。メールサービスの案内を確認し、正しいレコードに整理してください。",
+        level: "important",
+      },
+    ];
+  }
+
+  if (result.dkim.reason === "invalid") {
+    return [
+      {
+        id: "dkim-invalid-record",
+        title: "DKIMレコードの内容を修正してください",
+        description:
+          "DKIMレコードは見つかりましたが、タグまたは公開鍵の内容が正しくありません。利用中のメールサービスが指定するレコードと照合してください。",
+        level: "important",
+      },
+    ];
+  }
+
+  if (result.dkim.reason === "revoked") {
+    return [
+      {
+        id: "dkim-revoked-key",
+        title: "DKIM公開鍵を更新してください",
+        description:
+          "DKIMのpタグが空で、公開鍵が失効しています。現在使用している秘密鍵に対応する公開鍵を設定してください。",
+        level: "important",
+      },
+    ];
+  }
+
+  return [
+    getLookupFailureRecommendation("dkim", "DKIMレコード", result.dkim.reason),
+  ];
 }
 
 function getLookupFailureRecommendation(

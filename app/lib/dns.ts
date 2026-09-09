@@ -1,5 +1,7 @@
 import { resolveMx, resolveTxt } from "node:dns/promises";
 
+import { evaluateDkimRecords } from "@/app/lib/dkim";
+
 import type {
   CheckReason,
   DnsCheckResult,
@@ -13,18 +15,24 @@ type DnsError = Error & {
 
 export const DNS_LOOKUP_TIMEOUT_MS = 5000;
 
-export async function checkDnsRecords(domain: string): Promise<DnsCheckResult> {
-  const [mx, spf, dmarc] = await Promise.all([
+export async function checkDnsRecords(
+  domain: string,
+  dkimSelector: string,
+): Promise<DnsCheckResult> {
+  const [mx, spf, dmarc, dkim] = await Promise.all([
     checkMxRecord(domain),
     checkSpfRecord(domain),
     checkDmarcRecord(domain),
+    checkDkimRecord(domain, dkimSelector),
   ]);
 
   return {
     domain,
+    dkimSelector,
     mx,
     spf,
     dmarc,
+    dkim,
   };
 }
 
@@ -179,6 +187,78 @@ async function checkDmarcRecord(
       status: "warning",
       reason: getDnsErrorReason(error),
       message: getDnsErrorMessage(error, "DMARCレコード"),
+      records: [],
+    };
+  }
+}
+
+async function checkDkimRecord(
+  domain: string,
+  selector: string,
+): Promise<RecordCheck<string[]>> {
+  try {
+    const txtRecords = await withDnsTimeout(
+      resolveTxt(`${selector}._domainkey.${domain}`),
+    );
+    const normalizedRecords = normalizeTxtRecords(txtRecords);
+    const evaluation = evaluateDkimRecords(normalizedRecords);
+
+    if (evaluation.state === "multiple") {
+      return {
+        status: "warning",
+        reason: "multiple",
+        message: `DKIMレコードが複数設定されています（セレクタ：${selector}）。`,
+        records: evaluation.records,
+      };
+    }
+
+    if (evaluation.state === "invalid") {
+      return {
+        status: "warning",
+        reason: "invalid",
+        message: `DKIMレコードの内容が正しくありません（セレクタ：${selector}）。`,
+        records: evaluation.records,
+      };
+    }
+
+    if (evaluation.state === "revoked") {
+      return {
+        status: "warning",
+        reason: "revoked",
+        message: `DKIM公開鍵が失効しています（セレクタ：${selector}）。`,
+        records: evaluation.records,
+      };
+    }
+
+    if (evaluation.state === "missing") {
+      return {
+        status: "warning",
+        reason: "missing",
+        message: `DKIMレコードが見つかりませんでした（セレクタ：${selector}）。`,
+        records: evaluation.records,
+      };
+    }
+
+    return {
+      status: "success",
+      reason: "configured",
+      message: `DKIMレコードが設定されています（セレクタ：${selector}）。`,
+      records: evaluation.records,
+    };
+  } catch (error) {
+    if (isDnsError(error, "ENOTFOUND") || isDnsError(error, "ENODATA")) {
+      return {
+        status: "warning",
+        reason: "missing",
+        message: `DKIMレコードが見つかりませんでした（セレクタ：${selector}）。`,
+        records: [],
+      };
+    }
+
+    return {
+      status: "warning",
+      reason: getDnsErrorReason(error),
+      message: getDnsErrorMessage(error, "DKIMレコード"),
       records: [],
     };
   }
