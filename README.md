@@ -43,6 +43,12 @@ MX・SPF・DMARCを別々に調べ、取得した情報から問題を判断し�
 - `p=none`、`p=quarantine`、`p=reject` を読み取り、それぞれの意味を表示する
 - DMARCレコードが複数ある場合に注意を表示する
 
+### DKIMレコードの確認
+
+- 入力したセレクタを使って、`<selector>._domainkey.example.com` のTXTレコードを調べる
+- Google Workspace向けの `google`、Microsoft 365向けの `selector1`・`selector2` を候補として表示する
+- DKIMレコードが複数ある場合に注意を表示する
+
 ### DNSエラーの表示
 
 DNS情報を取得できなかった場合も、できるだけ原因が分かるメッセージを表示します。
@@ -139,6 +145,9 @@ DNSレコードを表示するだけでは、設定に詳しくない方は次�
 dns.ts
 DNS情報を取得して、設定内容を確認する
 
+dkim.ts
+DKIMレコードの構文、失効状態、鍵形式を確認する
+
 domain.ts
 入力されたドメインの形式を確認する
 
@@ -178,6 +187,7 @@ app/
 │
 ├── lib/
 │   ├── dns.ts
+│   ├── dkim.ts
 │   ├── domain.ts
 │   ├── format-result.ts
 │   └── recommendations.ts
@@ -209,7 +219,8 @@ app/
 
 ```json
 {
-  "domain": "example.com"
+  "domain": "example.com",
+  "dkimSelector": "google"
 }
 ```
 
@@ -234,6 +245,7 @@ npm run dev
 ### 品質確認
 
 ```bash
+npm test
 npm run lint
 npm run build
 ```
@@ -242,7 +254,6 @@ npm run build
 
 次の内容には、まだ対応していません。
 
-- DKIMの確認
 - SPFのDNS Lookup回数と10回制限の確認
 - SPFの `include` 先まで詳しく確認する処理
 - DMARCの組織ドメインへのフォールバック
@@ -253,8 +264,7 @@ npm run build
 
 ## 今後追加したい機能
 
-- DKIMレコードの確認
-- テストコードの追加
+- 診断ロジックのテスト拡充
 - SPFのDNS Lookup回数と10回制限の確認
 - DMARCレポート設定の確認
 - 診断履歴の保存
