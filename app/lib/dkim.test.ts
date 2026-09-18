@@ -202,6 +202,21 @@ describe("evaluateDkimRecords", () => {
       expected: "invalid",
     },
     {
+      name: "vタグ省略時も非ASCIIのpタグを構文不正と判定する",
+      records: ["p=日本語"],
+      expected: "invalid",
+    },
+    {
+      name: "vタグ省略時も制御文字を含むpタグを構文不正と判定する",
+      records: ["p=invalid\u0001key"],
+      expected: "invalid",
+    },
+    {
+      name: "vタグ省略時も裸の改行を含むpタグを構文不正と判定する",
+      records: ["p=invalid\nkey"],
+      expected: "invalid",
+    },
+    {
       name: "利用可能な鍵と失効した鍵の共存を複数と判定する",
       records: [validRsaRecord, "v=DKIM1; p="],
       expected: "multiple",

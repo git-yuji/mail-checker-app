@@ -16,6 +16,7 @@ type ParsedDkimRecord = {
   tags: Map<string, string>;
   firstTagName?: string;
   hasDkimVersion: boolean;
+  hasPublicKeyTag: boolean;
   isValid: boolean;
 };
 
@@ -77,10 +78,15 @@ function parseDkimRecord(record: string): ParsedDkimRecord {
   const tags = new Map<string, string>();
   let firstTagName: string | undefined;
   let hasDkimVersion = false;
+  let hasPublicKeyTag = false;
   let isValid = true;
   const parts = record.split(";");
 
   for (const [index, rawPart] of parts.entries()) {
+    if (extractTagName(rawPart) === "p") {
+      hasPublicKeyTag = true;
+    }
+
     const unfoldedPart = unfoldFoldingWhitespace(rawPart);
 
     if (unfoldedPart === null) {
@@ -126,13 +132,39 @@ function parseDkimRecord(record: string): ParsedDkimRecord {
     }
   }
 
-  return { tags, firstTagName, hasDkimVersion, isValid };
+  return {
+    tags,
+    firstTagName,
+    hasDkimVersion,
+    hasPublicKeyTag,
+    isValid,
+  };
 }
 
 function isDkimRecordCandidate(record: string): boolean {
-  const { tags, hasDkimVersion } = parseDkimRecord(record);
+  const { hasDkimVersion, hasPublicKeyTag } = parseDkimRecord(record);
 
-  return hasDkimVersion || tags.has("p");
+  return hasDkimVersion || hasPublicKeyTag;
+}
+
+function extractTagName(rawPart: string): string | null {
+  const separatorIndex = rawPart.indexOf("=");
+
+  if (separatorIndex < 1) {
+    return null;
+  }
+
+  const unfoldedName = unfoldFoldingWhitespace(
+    rawPart.slice(0, separatorIndex),
+  );
+
+  if (unfoldedName === null) {
+    return null;
+  }
+
+  const name = unfoldedName.trim();
+
+  return /^[a-zA-Z][a-zA-Z0-9_]*$/.test(name) ? name : null;
 }
 
 function hasValidVersion(record: ParsedDkimRecord): boolean {
