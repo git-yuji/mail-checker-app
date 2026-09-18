@@ -61,7 +61,7 @@ export function evaluateDkimRecords(records: string[]): DkimRecordEvaluation {
     return { state: "invalid", records: [record] };
   }
 
-  const keyType = parsedRecord.tags.get("k")?.toLowerCase() ?? "rsa";
+  const keyType = parsedRecord.tags.get("k") ?? "rsa";
 
   if (
     (keyType !== "rsa" && keyType !== "ed25519") ||
@@ -81,7 +81,14 @@ function parseDkimRecord(record: string): ParsedDkimRecord {
   const parts = record.split(";");
 
   for (const [index, rawPart] of parts.entries()) {
-    const part = rawPart.trim();
+    const unfoldedPart = unfoldFoldingWhitespace(rawPart);
+
+    if (unfoldedPart === null) {
+      isValid = false;
+      continue;
+    }
+
+    const part = unfoldedPart.trim();
 
     if (!part) {
       if (index !== parts.length - 1) {
@@ -103,7 +110,11 @@ function parseDkimRecord(record: string): ParsedDkimRecord {
 
     firstTagName ??= name;
 
-    if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(name) || tags.has(name)) {
+    if (
+      !/^[a-zA-Z][a-zA-Z0-9_]*$/.test(name) ||
+      !isValidTagValue(value) ||
+      tags.has(name)
+    ) {
       isValid = false;
       continue;
     }
@@ -140,7 +151,7 @@ function allowsSha256(tags: Map<string, string>): boolean {
 
   return (
     algorithms !== null &&
-    algorithms.some((algorithm) => algorithm.toLowerCase() === "sha256")
+    algorithms.includes("sha256")
   );
 }
 
@@ -153,11 +164,9 @@ function allowsEmailService(tags: Map<string, string>): boolean {
 
   return (
     serviceTypes !== null &&
-    serviceTypes.some((serviceType) => {
-      const normalizedServiceType = serviceType.toLowerCase();
-
-      return normalizedServiceType === "email" || normalizedServiceType === "*";
-    })
+    serviceTypes.some(
+      (serviceType) => serviceType === "email" || serviceType === "*",
+    )
   );
 }
 
@@ -234,13 +243,29 @@ function isValidPublicKey(publicKey: string, keyType: string): boolean {
 }
 
 function removeFoldingWhitespace(value: string): string | null {
-  const unfoldedValue = value.replace(/\r\n[ \t]+/g, "");
+  const unfoldedValue = unfoldFoldingWhitespace(value);
 
-  if (/[\r\n]/.test(unfoldedValue)) {
+  if (unfoldedValue === null) {
     return null;
   }
 
   return unfoldedValue.replace(/[ \t]/g, "");
+}
+
+function unfoldFoldingWhitespace(value: string): string | null {
+  const unfoldedValue = value.replace(/\r\n(?=[ \t])/g, "");
+
+  if (/[^\x09\x20-\x7e]/.test(unfoldedValue)) {
+    return null;
+  }
+
+  return unfoldedValue;
+}
+
+function isValidTagValue(value: string): boolean {
+  return /^(?:[\x21-\x3a\x3c-\x7e]+(?:[ \t]+[\x21-\x3a\x3c-\x7e]+)*)?$/.test(
+    value,
+  );
 }
 
 function isValidEd25519PublicKey(publicKey: Buffer): boolean {

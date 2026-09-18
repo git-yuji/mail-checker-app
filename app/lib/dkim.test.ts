@@ -97,6 +97,11 @@ describe("evaluateDkimRecords", () => {
       expected: "usable",
     },
     {
+      name: "大文字のSHA256を未対応として扱う",
+      records: [`v=DKIM1; h=SHA256; p=${rsaPublicKey}`],
+      expected: "invalid",
+    },
+    {
       name: "空のハッシュアルゴリズム要素を構文不正と判定する",
       records: [`v=DKIM1; h=sha256::sha1; p=${rsaPublicKey}`],
       expected: "invalid",
@@ -112,6 +117,11 @@ describe("evaluateDkimRecords", () => {
       expected: "invalid",
     },
     {
+      name: "大文字のRSAを未対応として扱う",
+      records: [`v=DKIM1; k=RSA; p=${rsaPublicKey}`],
+      expected: "invalid",
+    },
+    {
       name: "メール用途を許可しない鍵を構文不正と判定する",
       records: [`v=DKIM1; s=other; p=${rsaPublicKey}`],
       expected: "invalid",
@@ -120,6 +130,11 @@ describe("evaluateDkimRecords", () => {
       name: "メール用途を含む鍵を利用可能と判定する",
       records: [`v=DKIM1; s=other:email; p=${rsaPublicKey}`],
       expected: "usable",
+    },
+    {
+      name: "大文字のEMAILを未対応として扱う",
+      records: [`v=DKIM1; s=EMAIL; p=${rsaPublicKey}`],
+      expected: "invalid",
     },
     {
       name: "空のサービス種別要素を構文不正と判定する",
@@ -165,6 +180,26 @@ describe("evaluateDkimRecords", () => {
       name: "大文字のタグ名を標準タグとして扱わない",
       records: [`V=DKIM1; P=${rsaPublicKey}`],
       expected: "missing",
+    },
+    {
+      name: "未知タグ値の制御文字を構文不正と判定する",
+      records: [`v=DKIM1; x=\u0001; p=${rsaPublicKey}`],
+      expected: "invalid",
+    },
+    {
+      name: "未知タグ値の非ASCII文字を構文不正と判定する",
+      records: [`v=DKIM1; x=日本語; p=${rsaPublicKey}`],
+      expected: "invalid",
+    },
+    {
+      name: "未知タグ値の正しいFWSを許可する",
+      records: [`v=DKIM1; x=foo\r\n bar; p=${rsaPublicKey}`],
+      expected: "usable",
+    },
+    {
+      name: "未知タグ値の裸の改行を構文不正と判定する",
+      records: [`v=DKIM1; x=foo\nbar; p=${rsaPublicKey}`],
+      expected: "invalid",
     },
     {
       name: "利用可能な鍵と失効した鍵の共存を複数と判定する",

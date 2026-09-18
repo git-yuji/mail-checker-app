@@ -24,23 +24,28 @@ const selectorSuggestions = ["google", "selector1", "selector2"];
 export default function DomainForm() {
   const [domain, setDomain] = useState("");
   const [dkimSelector, setDkimSelector] = useState("google");
-  const [error, setError] = useState("");
+  const [domainError, setDomainError] = useState("");
+  const [selectorError, setSelectorError] = useState("");
+  const [requestError, setRequestError] = useState("");
   const [result, setResult] = useState<ApiResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setDomainError("");
+    setSelectorError("");
+    setRequestError("");
 
     const trimmedDomain = domain.trim();
 
     if (!trimmedDomain) {
-      setError("ドメインを入力してください。");
+      setDomainError("ドメインを入力してください。");
       setResult(null);
       return;
     }
 
     if (!isValidDomain(trimmedDomain)) {
-      setError("example.comのような形式で入力してください。");
+      setDomainError("example.comのような形式で入力してください。");
       setResult(null);
       return;
     }
@@ -48,18 +53,17 @@ export default function DomainForm() {
     const trimmedSelector = dkimSelector.trim();
 
     if (!trimmedSelector) {
-      setError("DKIMセレクタを入力してください。");
+      setSelectorError("DKIMセレクタを入力してください。");
       setResult(null);
       return;
     }
 
     if (!isValidDkimSelector(trimmedSelector)) {
-      setError("DKIMセレクタの形式が正しくありません。");
+      setSelectorError("DKIMセレクタの形式が正しくありません。");
       setResult(null);
       return;
     }
 
-    setError("");
     setResult(null);
     setIsLoading(true);
 
@@ -78,13 +82,13 @@ export default function DomainForm() {
       const data = (await response.json()) as ApiResponse;
 
       if (!response.ok) {
-        setError(data.message);
+        setRequestError(data.message);
         return;
       }
 
       setResult(data);
     } catch {
-      setError("通信に失敗しました。時間を置いて再度お試しください。");
+      setRequestError("通信に失敗しました。時間を置いて再度お試しください。");
     } finally {
       setIsLoading(false);
     }
@@ -104,16 +108,21 @@ export default function DomainForm() {
             type="text"
             maxLength={253}
             value={domain}
+            aria-invalid={domainError ? true : undefined}
+            aria-describedby={domainError ? "domain-error" : undefined}
             onChange={(event) => {
               setDomain(event.target.value);
-              setError("");
+              setDomainError("");
+              setRequestError("");
             }}
             placeholder="example.com"
             className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
           />
 
-          {error && (
-            <p className="mt-2 text-left text-sm text-red-600">{error}</p>
+          {domainError && (
+            <p id="domain-error" className="mt-2 text-left text-sm text-red-600">
+              {domainError}
+            </p>
           )}
         </div>
 
@@ -131,9 +140,16 @@ export default function DomainForm() {
             list="dkim-selector-suggestions"
             maxLength={253}
             value={dkimSelector}
+            aria-invalid={selectorError ? true : undefined}
+            aria-describedby={
+              selectorError
+                ? "dkim-selector-help dkim-selector-error"
+                : "dkim-selector-help"
+            }
             onChange={(event) => {
               setDkimSelector(event.target.value);
-              setError("");
+              setSelectorError("");
+              setRequestError("");
             }}
             placeholder="google"
             className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
@@ -143,9 +159,14 @@ export default function DomainForm() {
               <option key={suggestion} value={suggestion} />
             ))}
           </datalist>
-          <p className="mt-2 text-sm text-slate-500">
+          <p id="dkim-selector-help" className="mt-2 text-sm text-slate-500">
             Google Workspaceはgoogle、Microsoft 365はselector1またはselector2が代表的です。
           </p>
+          {selectorError && (
+            <p id="dkim-selector-error" className="mt-2 text-sm text-red-600">
+              {selectorError}
+            </p>
+          )}
         </div>
 
         <button
@@ -155,6 +176,12 @@ export default function DomainForm() {
         >
           {isLoading ? "診断中..." : "診断する"}
         </button>
+
+        {requestError && (
+          <p role="alert" className="text-left text-sm text-red-600">
+            {requestError}
+          </p>
+        )}
       </form>
 
       {result?.result && (
