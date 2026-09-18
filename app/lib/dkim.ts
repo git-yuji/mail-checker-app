@@ -16,6 +16,7 @@ type ParsedDkimRecord = {
   tags: Map<string, string>;
   firstTagName?: string;
   hasDkimVersion: boolean;
+  hasPublicKeyTag: boolean;
   isValid: boolean;
 };
 
@@ -61,7 +62,7 @@ export function evaluateDkimRecords(records: string[]): DkimRecordEvaluation {
     return { state: "invalid", records: [record] };
   }
 
-  const keyType = parsedRecord.tags.get("k")?.toLowerCase() ?? "rsa";
+  const keyType = parsedRecord.tags.get("k") ?? "rsa";
 
   if (
     (keyType !== "rsa" && keyType !== "ed25519") ||
@@ -77,11 +78,23 @@ function parseDkimRecord(record: string): ParsedDkimRecord {
   const tags = new Map<string, string>();
   let firstTagName: string | undefined;
   let hasDkimVersion = false;
+  let hasPublicKeyTag = false;
   let isValid = true;
   const parts = record.split(";");
 
   for (const [index, rawPart] of parts.entries()) {
-    const part = rawPart.trim();
+    if (extractTagName(rawPart) === "p") {
+      hasPublicKeyTag = true;
+    }
+
+    const unfoldedPart = unfoldFoldingWhitespace(rawPart);
+
+    if (unfoldedPart === null) {
+      isValid = false;
+      continue;
+    }
+
+    const part = unfoldedPart.trim();
 
     if (!part) {
       if (index !== parts.length - 1) {
@@ -103,7 +116,11 @@ function parseDkimRecord(record: string): ParsedDkimRecord {
 
     firstTagName ??= name;
 
-    if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(name) || tags.has(name)) {
+    if (
+      !/^[a-zA-Z][a-zA-Z0-9_]*$/.test(name) ||
+      !isValidTagValue(value) ||
+      tags.has(name)
+    ) {
       isValid = false;
       continue;
     }
@@ -115,13 +132,39 @@ function parseDkimRecord(record: string): ParsedDkimRecord {
     }
   }
 
-  return { tags, firstTagName, hasDkimVersion, isValid };
+  return {
+    tags,
+    firstTagName,
+    hasDkimVersion,
+    hasPublicKeyTag,
+    isValid,
+  };
 }
 
 function isDkimRecordCandidate(record: string): boolean {
-  const { tags, hasDkimVersion } = parseDkimRecord(record);
+  const { hasDkimVersion, hasPublicKeyTag } = parseDkimRecord(record);
 
-  return hasDkimVersion || tags.has("p");
+  return hasDkimVersion || hasPublicKeyTag;
+}
+
+function extractTagName(rawPart: string): string | null {
+  const separatorIndex = rawPart.indexOf("=");
+
+  if (separatorIndex < 1) {
+    return null;
+  }
+
+  const unfoldedName = unfoldFoldingWhitespace(
+    rawPart.slice(0, separatorIndex),
+  );
+
+  if (unfoldedName === null) {
+    return null;
+  }
+
+  const name = unfoldedName.trim();
+
+  return /^[a-zA-Z][a-zA-Z0-9_]*$/.test(name) ? name : null;
 }
 
 function hasValidVersion(record: ParsedDkimRecord): boolean {
@@ -140,7 +183,7 @@ function allowsSha256(tags: Map<string, string>): boolean {
 
   return (
     algorithms !== null &&
-    algorithms.some((algorithm) => algorithm.toLowerCase() === "sha256")
+    algorithms.includes("sha256")
   );
 }
 
@@ -153,11 +196,9 @@ function allowsEmailService(tags: Map<string, string>): boolean {
 
   return (
     serviceTypes !== null &&
-    serviceTypes.some((serviceType) => {
-      const normalizedServiceType = serviceType.toLowerCase();
-
-      return normalizedServiceType === "email" || normalizedServiceType === "*";
-    })
+    serviceTypes.some(
+      (serviceType) => serviceType === "email" || serviceType === "*",
+    )
   );
 }
 
@@ -234,13 +275,29 @@ function isValidPublicKey(publicKey: string, keyType: string): boolean {
 }
 
 function removeFoldingWhitespace(value: string): string | null {
-  const unfoldedValue = value.replace(/\r\n[ \t]+/g, "");
+  const unfoldedValue = unfoldFoldingWhitespace(value);
 
-  if (/[\r\n]/.test(unfoldedValue)) {
+  if (unfoldedValue === null) {
     return null;
   }
 
   return unfoldedValue.replace(/[ \t]/g, "");
+}
+
+function unfoldFoldingWhitespace(value: string): string | null {
+  const unfoldedValue = value.replace(/\r\n(?=[ \t])/g, "");
+
+  if (/[^\x09\x20-\x7e]/.test(unfoldedValue)) {
+    return null;
+  }
+
+  return unfoldedValue;
+}
+
+function isValidTagValue(value: string): boolean {
+  return /^(?:[\x21-\x3a\x3c-\x7e]+(?:[ \t]+[\x21-\x3a\x3c-\x7e]+)*)?$/.test(
+    value,
+  );
 }
 
 function isValidEd25519PublicKey(publicKey: Buffer): boolean {
