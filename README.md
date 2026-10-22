@@ -228,7 +228,7 @@ app/
 
 ### 必要な環境
 
-- Node.js 20.9以上
+- Node.js 24.22.1以上（24.x）
 - npm
 
 ### インストールと起動
@@ -236,11 +236,23 @@ app/
 ```bash
 git clone https://github.com/git-yuji/mail-checker-app.git
 cd mail-checker-app
-npm install
+nvm install
+nvm use
+npm ci
 npm run dev
 ```
 
 ブラウザで [http://localhost:3000](http://localhost:3000) を開きます。
+
+### Node.js のセキュリティ更新
+
+2026年10月21日の [Node.js セキュリティリリース](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases) に対応し、開発・ビルド用のバージョンを `.nvmrc` で 24.22.1 に指定しています。`package.json` の `engines` でも、修正済みの 24.x（24.22.1以上）を指定しています。
+
+nvmを使わない場合は、Node.js 24.22.1以上（24.x）を別途インストールしてください。`node --version` で利用中のバージョンを確認できます。
+
+Cloudflareのビルドを利用する場合は、ビルド環境の環境変数 `NODE_VERSION` を `24.22.1` に設定してください。このリポジトリの変更だけでは、既存のビルド環境やローカルにインストール済みのNode.jsは更新されません。
+
+本番のCloudflare WorkersはNode.js本体とは異なる実行環境です。`wrangler.jsonc` の `nodejs_compat` や `compatibility_date` は、Node.jsのインストールバージョンを指定する設定ではありません。
 
 ### 品質確認
 
