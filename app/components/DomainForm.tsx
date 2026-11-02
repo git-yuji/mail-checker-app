@@ -1,7 +1,11 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { isValidDkimSelector, isValidDomain } from "@/app/lib/domain";
+import {
+  isValidDkimRecordName,
+  isValidDkimSelector,
+  isValidDomain,
+} from "@/app/lib/domain";
 import {
   formatCustomerResult,
   formatTechnicalResult,
@@ -64,6 +68,14 @@ export default function DomainForm() {
       return;
     }
 
+    if (!isValidDkimRecordName(trimmedDomain, trimmedSelector)) {
+      setSelectorError(
+        "ドメイン名とDKIMセレクタの組み合わせが長すぎます。入力内容を確認してください。",
+      );
+      setResult(null);
+      return;
+    }
+
     setResult(null);
     setIsLoading(true);
 
@@ -113,6 +125,7 @@ export default function DomainForm() {
             onChange={(event) => {
               setDomain(event.target.value);
               setDomainError("");
+              setSelectorError("");
               setRequestError("");
             }}
             placeholder="example.com"
